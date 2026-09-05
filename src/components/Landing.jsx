@@ -1,11 +1,17 @@
 import StretchFigure from './StretchFigure'
+import { useT, LANGS } from '../i18n'
 
-export default function Landing({ auth, onGuest }) {
+export default function Landing({ auth, onGuest, lang, onLang }) {
+  const { t } = useT()
   return (
     <main className="landing">
+      <div className="lang-row">
+        {Object.entries(LANGS).map(([k, v]) => (
+          <button key={k} className={`day ${lang === k ? 'on' : ''}`} onClick={() => onLang(k)}>{v.meta.name}</button>
+        ))}
+      </div>
       <div className="hero">
         <div className="hero-media" aria-hidden="true">
-          {/* Drop a Seedance clip at public/videos/hero.mp4 and it will play here; otherwise the animated scene shows. */}
           <video className="hero-video" src={`${import.meta.env.BASE_URL}videos/hero.mp4`} autoPlay muted loop playsInline preload="none" onError={(e) => (e.currentTarget.style.display = 'none')} />
           <div className="hero-scene">
             <span className="blob b1" /><span className="blob b2" /><span className="blob b3" />
@@ -14,33 +20,26 @@ export default function Landing({ auth, onGuest }) {
         </div>
 
         <div className="hero-copy">
-          <p className="eyebrow">DeskFlow</p>
-          <h1>Sit less. Sip more. Focus better.</h1>
-          <p className="sub">
-            Gentle, on-time reminders to stand and stretch every hour, drink water, and work in focused Pomodoro blocks —
-            built for people who live on a laptop.
-          </p>
-
+          <p className="eyebrow">{t('landing.eyebrow')}</p>
+          <h1>{t('landing.title')}</h1>
+          <p className="sub">{t('landing.sub')}</p>
           <div className="cta">
             {auth.enabled ? (
-              <button className="btn google" onClick={auth.signIn} disabled={auth.loading}>
-                <GoogleMark /> Continue with Google
-              </button>
+              <button className="btn google" onClick={auth.signIn} disabled={auth.loading}><GoogleMark /> {t('landing.google')}</button>
             ) : (
-              <p className="muted small">Google sign-in appears once Supabase is configured (see README).</p>
+              <p className="muted small">{t('landing.needsSupabase')}</p>
             )}
-            <button className="btn ghost" onClick={onGuest}>Continue as guest</button>
+            <button className="btn ghost" onClick={onGuest}>{t('landing.guest')}</button>
           </div>
           {auth.error && <p className="error small">{auth.error}</p>}
-          <p className="muted small">Guest mode keeps settings on this device. Sign in to sync them across devices — nothing else is stored.</p>
+          <p className="muted small">{t('landing.guestNote')}</p>
         </div>
       </div>
 
       <ul className="features">
-        <li><strong>Move every 60 min</strong><span>A 3-minute guided routine: reach, neck, hips, eyes, walk.</span></li>
-        <li><strong>Hydrate</strong><span>Small sips on a schedule you set, with one-click snooze.</span></li>
-        <li><strong>Editable Pomodoro</strong><span>25/5/15 by default — change every number.</span></li>
-        <li><strong>Respects your day</strong><span>Quiet hours and weekends off. Never nags twice.</span></li>
+        {t('landing.features').map(([h, b]) => (
+          <li key={h}><strong>{h}</strong><span>{b}</span></li>
+        ))}
       </ul>
     </main>
   )

@@ -1,33 +1,53 @@
-export const SETTINGS_VERSION = 1
+import { REMINDER_DEFAULTS } from '../reminders/registry'
+
+/** Bump when the settings shape changes and add a case to migrateSettings. */
+export const SETTINGS_VERSION = 2
 
 export const DEFAULT_SETTINGS = {
-  version: SETTINGS_VERSION,
-  move: { enabled: true, intervalMin: 60, snoozeMin: 5 },
-  water: { enabled: true, intervalMin: 45, snoozeMin: 10 },
+  lang: null, // null → detect from browser
+  ...REMINDER_DEFAULTS, // move / water / mind: { enabled, intervalMin, snoozeMin }
   pomodoro: { focusMin: 25, shortBreakMin: 5, longBreakMin: 15, roundsBeforeLong: 4, autoStartBreaks: true },
-  quietHours: { enabled: true, start: '18:00', end: '08:30', weekdaysOnly: true },
+  quietHours: { enabled: true, start: '18:00', end: '08:30', workDays: [1, 2, 3, 4, 5] }, // 0=Sun … 6=Sat
   alerts: { sound: true, notifications: false, volume: 0.6 },
 }
 
+/** localStorage migrations for `settings`. v0 = unversioned legacy, v1 = weekdaysOnly flag, v2 = workDays array. */
+export function migrateSettings(v, data) {
+  const d = { ...(data || {}) }
+  if (v <= 1 && d.quietHours && !Array.isArray(d.quietHours.workDays)) {
+    const { weekdaysOnly, ...rest } = d.quietHours
+    d.quietHours = { ...rest, workDays: weekdaysOnly === false ? [0, 1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5] }
+  }
+  delete d.version
+  return d
+}
+
+// Text lives in i18n/*.js under `stretches.<id>`; this is structure only.
 export const STRETCHES = [
-  { id: 'stand', title: 'Stand up & reach', seconds: 30, cue: 'Stand, inhale, reach both arms overhead. Lengthen through the spine.', pose: 'reach' },
-  { id: 'neck', title: 'Neck release', seconds: 30, cue: 'Tilt right ear to right shoulder, 15s each side. Keep shoulders down.', pose: 'neck' },
-  { id: 'shoulders', title: 'Shoulder rolls', seconds: 20, cue: '10 slow rolls backwards. Open the chest — undo the laptop hunch.', pose: 'shoulders' },
-  { id: 'hips', title: 'Hip flexor stretch', seconds: 40, cue: 'Half-kneel or lunge, tuck the pelvis, 20s each side. Hips get tight from sitting.', pose: 'lunge' },
-  { id: 'hamstring', title: 'Forward fold', seconds: 30, cue: 'Soft knees, fold forward, let the head hang. Breathe.', pose: 'fold' },
-  { id: 'eyes', title: '20-20-20 eyes', seconds: 20, cue: 'Look at something 20 feet (6 m) away for 20 seconds.', pose: 'eyes' },
-  { id: 'wrists', title: 'Wrist & forearm', seconds: 30, cue: 'Arm out, palm up, gently pull fingers back. 15s each side.', pose: 'wrist' },
-  { id: 'walk', title: 'Short walk', seconds: 60, cue: 'Walk to the window or refill your water. Movement beats any single stretch.', pose: 'walk' },
+  { id: 'stand', seconds: 30, pose: 'reach' },
+  { id: 'handsup', seconds: 30, pose: 'handsup' },
+  { id: 'squat', seconds: 40, pose: 'squat' },
+  { id: 'sidebend', seconds: 30, pose: 'sidebend' },
+  { id: 'march', seconds: 40, pose: 'march' },
+  { id: 'calf', seconds: 30, pose: 'calf' },
+  { id: 'neck', seconds: 30, pose: 'neck' },
+  { id: 'shoulders', seconds: 20, pose: 'shoulders' },
+  { id: 'hips', seconds: 40, pose: 'lunge' },
+  { id: 'hamstring', seconds: 30, pose: 'fold' },
+  { id: 'eyes', seconds: 20, pose: 'eyes' },
+  { id: 'wrists', seconds: 30, pose: 'wrist' },
+  { id: 'walk', seconds: 60, pose: 'walk' },
 ]
 
-// Best-practice tips shown on the dashboard (rotates).
-export const TIPS = [
-  'Screen top at eye level: stack the laptop on books and use an external keyboard.',
-  'Elbows ~90°, wrists straight, shoulders relaxed. If you shrug to type, raise the chair or lower the desk.',
-  'The best posture is the next posture — change position often rather than holding one “perfect” one.',
-  'Feet flat on the floor or on a footrest; avoid dangling legs.',
-  'Aim for roughly 30–35 ml of water per kg of body weight per day; sip, don’t chug.',
-  'Every 20 min, look 20 ft away for 20 s to relax the eye muscles.',
-  'Stand or walk for 5 min every hour — it matters more than a 60-min gym session for metabolic health.',
-  'Brightness ≈ ambient room light; reduce glare by placing the screen perpendicular to windows.',
+// Mind-reset exercises. `kind` drives the visual: breath (animated circle with
+// a phase pattern in seconds), gaze (far/up), still (posture), sense (grounding).
+export const MIND = [
+  { id: 'box', seconds: 96, kind: 'breath', pattern: [['inhale', 4], ['hold', 4], ['exhale', 4], ['hold', 4]] },
+  { id: 'sigh', seconds: 45, kind: 'breath', pattern: [['inhale', 1.5], ['inhale', 1], ['exhale', 6]] },
+  { id: 'ceiling', seconds: 45, kind: 'gaze', pose: 'lookup' },
+  { id: 'horizon', seconds: 45, kind: 'gaze', pose: 'eyes' },
+  { id: 'mountain', seconds: 60, kind: 'still', pose: 'stand' },
+  { id: 'sit', seconds: 60, kind: 'still', pose: 'sit' },
+  { id: 'ground', seconds: 60, kind: 'sense' },
+  { id: 'handsWarm', seconds: 30, kind: 'still', pose: 'palms' },
 ]

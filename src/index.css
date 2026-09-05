@@ -13,6 +13,8 @@
   --green: #16a34a;
   --green-soft: #dcf5e4;
   --amber: #b45309;
+  --violet: #6d4fc2;
+  --violet-soft: #e9e3fa;
   --shadow: 0 10px 30px rgba(29, 42, 42, 0.08);
   --r: 20px;
   color-scheme: light;
@@ -28,6 +30,7 @@
     --blue-soft: #14284f;
     --coral-soft: #4a2219;
     --green-soft: #12351f;
+    --violet-soft: #2a2148;
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     color-scheme: dark;
   }
@@ -166,8 +169,8 @@ input { font: inherit; color: inherit; }
 .overlay-actions { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
 
 /* Settings drawer */
-.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 100%); background: var(--card); border-left: 1px solid var(--line); box-shadow: var(--shadow); z-index: 40; padding: 1.25rem; overflow-y: auto; animation: slide 0.25s ease both; }
-@keyframes slide { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.drawer { position: fixed; top: 0; inset-inline-end: 0; bottom: 0; width: min(380px, 100%); background: var(--card); border-inline-start: 1px solid var(--line); box-shadow: var(--shadow); z-index: 40; padding: 1.25rem; overflow-y: auto; animation: slide 0.25s ease both; }
+@keyframes slide { from { opacity: 0; } to { opacity: 1; } }
 .drawer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .drawer section { padding: 1rem 0; border-top: 1px solid var(--line); }
 .notif-row { margin-top: 0.6rem; }
@@ -193,27 +196,167 @@ input { font: inherit; color: inherit; }
 .features li { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.3rem; }
 .features span { color: var(--muted); font-size: 0.9rem; }
 
-/* Stick figure animations */
-.figure { color: var(--teal); }
-.pose-reach { transform-origin: 60px 71px; animation: breathe 3s ease-in-out infinite; }
-@keyframes breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.04); } }
-.pose-neck .head { transform-origin: 60px 31px; animation: tilt 4s ease-in-out infinite; }
-@keyframes tilt { 0%, 100% { transform: rotate(-18deg); } 50% { transform: rotate(18deg); } }
-.pose-shoulders .arm { transform-origin: 60px 44px; animation: roll 2.4s ease-in-out infinite; }
-.pose-shoulders .arm.r { animation-delay: -1.2s; }
-@keyframes roll { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-.pose-lunge { transform-origin: 56px 69px; animation: sink 3s ease-in-out infinite; }
-@keyframes sink { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
-.pose-fold { transform-origin: 68px 72px; animation: fold 4s ease-in-out infinite; }
-@keyframes fold { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(4deg); } }
-.pose-eyes .target { animation: blink 2s ease-in-out infinite; }
-@keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
-.pose-wrist .hand { transform-origin: 90px 44px; animation: flex 2.5s ease-in-out infinite; }
-@keyframes flex { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-25deg); } }
-.pose-walk .leg, .pose-walk .arm { transform-origin: 60px 71px; animation: swing 1s ease-in-out infinite alternate; }
-.pose-walk .arm { transform-origin: 60px 44px; }
-.pose-walk .leg.r, .pose-walk .arm.l { animation-delay: -1s; }
-@keyframes swing { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+/* ---- DeskFlow figure: articulated limb animations ---- */
+.figure { color: var(--teal); overflow: visible; }
+.figure .leg { transform-origin: 60px 70px; }
+.figure .arm { transform-origin: 60px 44px; }
+.figure .arm .fore-g { transform-origin: 60px 58px; }
+.figure .leg .shin-g { transform-origin: 60px 90px; }
+.figure .upper { transform-origin: 60px 70px; }
+.figure .head-g { transform-origin: 60px 42px; }
+
+/* default resting pose: arms slightly out, legs slightly apart */
+.figure .arm-l { transform: rotate(18deg); }
+.figure .arm-r { transform: rotate(-18deg); }
+.figure .leg-l { transform: rotate(10deg); }
+.figure .leg-r { transform: rotate(-10deg); }
+
+/* reach / stand: arms overhead, gentle breathing */
+.fig-reach .arm-l, .fig-stand .arm-l { animation: reachL 3.2s ease-in-out infinite; }
+.fig-reach .arm-r, .fig-stand .arm-r { animation: reachR 3.2s ease-in-out infinite; }
+@keyframes reachL { 0%,100% { transform: rotate(135deg); } 50% { transform: rotate(148deg); } }
+@keyframes reachR { 0%,100% { transform: rotate(-135deg); } 50% { transform: rotate(-148deg); } }
+
+/* hands up: arms swing from sides to overhead (jumping-jack arms) */
+.fig-handsup .arm-l { animation: huL 2s ease-in-out infinite; }
+.fig-handsup .arm-r { animation: huR 2s ease-in-out infinite; }
+.fig-handsup .leg-l { animation: hjL 2s ease-in-out infinite; }
+.fig-handsup .leg-r { animation: hjR 2s ease-in-out infinite; }
+.fig-handsup .body { animation: hop 2s ease-in-out infinite; }
+@keyframes huL { 0%,100% { transform: rotate(15deg); } 50% { transform: rotate(150deg); } }
+@keyframes huR { 0%,100% { transform: rotate(-15deg); } 50% { transform: rotate(-150deg); } }
+@keyframes hjL { 0%,100% { transform: rotate(6deg); } 50% { transform: rotate(24deg); } }
+@keyframes hjR { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(-24deg); } }
+@keyframes hop { 0%,100% { transform: translateY(0); } 45%,55% { transform: translateY(-3px); } }
+
+/* squat: hips drop, knees bend, arms forward for balance */
+.fig-squat .body { animation: sqBody 3s ease-in-out infinite; }
+.fig-squat .leg-l { animation: sqThighL 3s ease-in-out infinite; }
+.fig-squat .leg-r { animation: sqThighR 3s ease-in-out infinite; }
+.fig-squat .leg-l .shin-g { animation: sqShin 3s ease-in-out infinite; }
+.fig-squat .leg-r .shin-g { animation: sqShinR 3s ease-in-out infinite; }
+@keyframes sqShinR { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(42deg) scaleY(0.55); } }
+.fig-squat .arm-l, .fig-squat .arm-r { animation: sqArm 3s ease-in-out infinite; }
+.fig-squat .upper { animation: sqLean 3s ease-in-out infinite; }
+@keyframes sqBody { 0%,100% { transform: translateY(0); } 50% { transform: translateY(16px); } }
+@keyframes sqThighL { 0%,100% { transform: rotate(10deg); } 50% { transform: rotate(42deg); } }
+@keyframes sqThighR { 0%,100% { transform: rotate(-10deg); } 50% { transform: rotate(-42deg); } }
+@keyframes sqShin { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-42deg) scaleY(0.55); } }
+@keyframes sqArm { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(85deg); } }
+.fig-squat .arm-r { animation-name: sqArmR; }
+@keyframes sqArmR { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(85deg); } }
+@keyframes sqLean { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-6deg); } }
+
+/* side bend: whole upper body tilts, top arm overhead */
+.fig-sidebend .upper { animation: sbUpper 4s ease-in-out infinite; }
+.fig-sidebend .arm-l { animation: sbArmL 4s ease-in-out infinite; }
+.fig-sidebend .arm-r { animation: sbArmR 4s ease-in-out infinite; }
+.fig-sidebend .leg-l { transform: rotate(14deg); } .fig-sidebend .leg-r { transform: rotate(-14deg); }
+@keyframes sbUpper { 0%,100% { transform: rotate(-22deg); } 50% { transform: rotate(22deg); } }
+@keyframes sbArmL { 0%,100% { transform: rotate(140deg); } 50% { transform: rotate(10deg); } }
+@keyframes sbArmR { 0%,100% { transform: rotate(-10deg); } 50% { transform: rotate(-140deg); } }
+
+/* neck: head tilts ear to shoulder */
+.fig-neck .head-g { animation: neckTilt 4s ease-in-out infinite; }
+@keyframes neckTilt { 0%,100% { transform: rotate(-24deg); } 50% { transform: rotate(24deg); } }
+
+/* shoulder rolls: arms hang, shoulders (upper) bob + arms circle slightly */
+.fig-shoulders .arm-l { animation: shL 2.4s ease-in-out infinite; }
+.fig-shoulders .arm-r { animation: shR 2.4s ease-in-out infinite; }
+.fig-shoulders .upper { animation: shUp 2.4s ease-in-out infinite; }
+@keyframes shL { 0%,100% { transform: rotate(12deg) translateY(0); } 50% { transform: rotate(22deg) translateY(-4px); } }
+@keyframes shR { 0%,100% { transform: rotate(-12deg) translateY(0); } 50% { transform: rotate(-22deg) translateY(-4px); } }
+@keyframes shUp { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+
+/* lunge: one leg forward bent, other back, slow sink */
+.fig-lunge .body { animation: lgBody 3s ease-in-out infinite; }
+.fig-lunge .leg-l { animation: lgFront 3s ease-in-out infinite; }
+.fig-lunge .leg-l .shin-g { animation: lgFrontShin 3s ease-in-out infinite; }
+.fig-lunge .leg-r { animation: lgBack 3s ease-in-out infinite; }
+.fig-lunge .arm-l { transform: rotate(10deg); } .fig-lunge .arm-r { transform: rotate(-10deg); }
+.fig-lunge .upper { animation: lgLean 3s ease-in-out infinite; }
+@keyframes lgLean { 0%,100% { transform: rotate(6deg); } 50% { transform: rotate(12deg); } }
+@keyframes lgBody { 0%,100% { transform: translateY(2px); } 50% { transform: translateY(10px); } }
+@keyframes lgFront { 0%,100% { transform: rotate(40deg); } 50% { transform: rotate(62deg); } }
+@keyframes lgFrontShin { 0%,100% { transform: rotate(-40deg); } 50% { transform: rotate(-62deg); } }
+@keyframes lgBack { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(-20deg); } }
+
+/* forward fold: upper body hinges at hips, arms hang */
+.fig-fold .upper { animation: foldUp 4s ease-in-out infinite; }
+.fig-fold .arm-l { animation: foldArm 4s ease-in-out infinite; }
+.fig-fold .arm-r { animation: foldArmR 4s ease-in-out infinite; }
+@keyframes foldArmR { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(80deg); } }
+.fig-fold .leg-l { transform: rotate(6deg); } .fig-fold .leg-r { transform: rotate(-6deg); }
+@keyframes foldUp { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-95deg); } }
+@keyframes foldArm { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(95deg); } }
+
+/* march in place: alternating knee lifts + arm swing */
+.fig-march .leg-l { animation: mThighL 1.2s ease-in-out infinite; }
+.fig-march .leg-l .shin-g { animation: mShin 1.2s ease-in-out infinite; }
+.fig-march .leg-r { animation: mThighR 1.2s ease-in-out infinite; }
+.fig-march .leg-r .shin-g { animation: mShin 1.2s ease-in-out infinite -0.6s; }
+.fig-march .arm-l { animation: mArmL 1.2s ease-in-out infinite; }
+.fig-march .arm-r { animation: mArmR 1.2s ease-in-out infinite; }
+@keyframes mThighL { 0%,100% { transform: rotate(4deg); } 50% { transform: rotate(75deg); } }
+@keyframes mThighR { 0%,100% { transform: rotate(-75deg); } 50% { transform: rotate(-4deg); } }
+@keyframes mShin { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-70deg); } }
+@keyframes mArmL { 0%,100% { transform: rotate(-30deg); } 50% { transform: rotate(30deg); } }
+@keyframes mArmR { 0%,100% { transform: rotate(30deg); } 50% { transform: rotate(-30deg); } }
+
+/* calf raises: whole body lifts, heels up */
+.fig-calf .body { animation: calf 2s ease-in-out infinite; }
+.fig-calf .leg-l { transform: rotate(5deg); } .fig-calf .leg-r { transform: rotate(-5deg); }
+.fig-calf .arm-l { transform: rotate(10deg); } .fig-calf .arm-r { transform: rotate(-10deg); }
+@keyframes calf { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+
+/* wrist: one arm out, other hand presses fingers back */
+.fig-wrist .arm-l { transform: rotate(90deg); }
+.fig-wrist .arm-l .fore-g { animation: wristFlex 2.5s ease-in-out infinite; }
+.fig-wrist .arm-r { transform: rotate(60deg); }
+.fig-wrist .arm-r .fore-g { transform: rotate(60deg); }
+@keyframes wristFlex { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-35deg); } }
+
+/* eyes: head turns to the far target that blinks */
+.fig-eyes .head-g { animation: look 4s ease-in-out infinite; }
+.fig-eyes .target { animation: blink 2s ease-in-out infinite; }
+.fig-eyes .arm-l { transform: rotate(12deg); } .fig-eyes .arm-r { transform: rotate(-12deg); }
+@keyframes look { 0%,100% { transform: rotate(0deg) translateX(0); } 50% { transform: rotate(-18deg) translateX(3px); } }
+@keyframes blink { 0%,100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+/* look up: head tilts back, slow breathing, target glows above */
+.fig-lookup .head-g { animation: lookup 5s ease-in-out infinite; }
+.fig-lookup .target { animation: blink 2.5s ease-in-out infinite; }
+.fig-lookup .arm-l { transform: rotate(12deg); } .fig-lookup .arm-r { transform: rotate(-12deg); }
+.fig-lookup .upper { animation: lkUp 5s ease-in-out infinite; }
+@keyframes lookup { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-3px) scale(1.08); } }
+@keyframes lkUp { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.03); } }
+
+/* stand still (mountain): only breath */
+.fig-stand .arm-l { animation: none; transform: rotate(8deg); } .fig-stand .arm-r { animation: none; transform: rotate(-8deg); }
+.fig-stand .upper { animation: lkUp 5s ease-in-out infinite; }
+
+/* sit like a mountain: seated, hands on thighs, breathing */
+.fig-sit .body { transform: translateY(12px); }
+.fig-sit .leg-l { transform: rotate(28deg); } .fig-sit .leg-r { transform: rotate(-28deg); }
+.fig-sit .leg .shin-g { transform: scaleY(0.75); }
+.fig-sit .arm-l { transform: rotate(30deg); } .fig-sit .arm-r { transform: rotate(-30deg); }
+.fig-sit .upper { animation: lkUp 5s ease-in-out infinite; }
+
+/* palms over eyes */
+.fig-palms .arm-l { transform: rotate(150deg); } .fig-palms .arm-r { transform: rotate(-150deg); }
+.fig-palms .arm-l .fore-g { transform: rotate(-125deg); } .fig-palms .arm-r .fore-g { transform: rotate(125deg); }
+.fig-palms .upper { animation: lkUp 5s ease-in-out infinite; }
+
+/* walk: legs and arms swing, slight bob */
+.fig-walk .leg-l { animation: wL 1s ease-in-out infinite; }
+.fig-walk .leg-r { animation: wR 1s ease-in-out infinite; }
+.fig-walk .leg .shin-g { animation: wShin 1s ease-in-out infinite; }
+.fig-walk .arm-l { animation: mArmL 1s ease-in-out infinite; }
+.fig-walk .arm-r { animation: mArmR 1s ease-in-out infinite; }
+.fig-walk .body { animation: hop 1s ease-in-out infinite; }
+@keyframes wL { 0%,100% { transform: rotate(28deg); } 50% { transform: rotate(-28deg); } }
+@keyframes wR { 0%,100% { transform: rotate(-28deg); } 50% { transform: rotate(28deg); } }
+@keyframes wShin { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-25deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -234,3 +377,73 @@ input { font: inherit; color: inherit; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: 4px; }
 .legend i.dash { width: 14px; height: 0; border-top: 2px dashed var(--muted); border-radius: 0; }
 .board-foot { margin-top: 0.75rem; }
+
+/* Icons */
+.with-icon { display: inline-flex; align-items: center; gap: 0.45rem; }
+.icon-badge { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; }
+.badge-teal { background: var(--teal-soft); color: var(--teal); }
+.badge-blue { background: var(--blue-soft); color: var(--blue); }
+.badge-coral { background: var(--coral-soft); color: var(--coral); }
+.badge-amber { background: #fdf0d5; color: var(--amber); }
+.badge-violet { background: var(--violet-soft); color: var(--violet); }
+.ring-violet .ring-fill { stroke: var(--violet); }
+@media (prefers-color-scheme: dark) { .badge-amber { background: #3d2a0f; color: #f5b04d; } }
+.pill.with-icon { gap: 0.3rem; }
+
+/* Day picker */
+.daypick { display: flex; gap: 0.35rem; flex-wrap: wrap; margin: 0.3rem 0 0.4rem; }
+.day { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 0.3rem 0.65rem; font-size: 0.8rem; cursor: pointer; }
+.day.on { background: var(--teal); border-color: var(--teal); color: #fff; }
+
+
+/* Language */
+.lang { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 0.35rem 0.7rem; font-size: 0.85rem; }
+.lang-row { display: flex; gap: 0.35rem; justify-content: flex-end; margin-bottom: 1rem; }
+
+/* RTL */
+[dir="rtl"] body, [dir="rtl"] .app, [dir="rtl"] .landing { font-family: "Segoe UI", Tahoma, "Noto Sans Arabic", "Helvetica Neue", Arial, system-ui, sans-serif; }
+[dir="rtl"] .inline-num { direction: ltr; }
+[dir="rtl"] .clock, [dir="rtl"] .ring-center strong { direction: ltr; }
+
+/* Mind overlay */
+.overlay.mind { background: rgba(109, 79, 194, 0.32); }
+.overlay.mind .stepbar span { background: var(--violet); }
+.overlay.mind .btn.primary { background: var(--violet); border-color: var(--violet); }
+.overlay.mind .pill { background: var(--violet-soft); color: var(--violet); }
+.mind-media { height: 240px; }
+.figure.calm { color: var(--violet); }
+.breath { position: relative; width: 220px; height: 220px; display: grid; place-items: center; }
+.breath-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed var(--violet-soft); }
+.breath-ball { position: absolute; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #b9a6f0, var(--violet)); opacity: 0.85; transition: transform 0.12s linear; will-change: transform; }
+.breath-label { position: relative; display: flex; flex-direction: column; align-items: center; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.25); }
+.breath-label strong { font-size: 1.3rem; }
+.breath-label .muted { color: #fff; opacity: 0.85; font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.sense { display: flex; gap: 0.9rem; align-items: center; }
+.sense-n { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-size: 1.5rem; font-weight: 800; border: 2px solid var(--line); color: var(--muted); transition: all 0.3s ease; }
+.sense-n.on { background: var(--violet); border-color: var(--violet); color: #fff; transform: scale(1.18); }
+.sense-n.done { border-color: var(--violet); color: var(--violet); }
+
+/* Board footer */
+.board-foot { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap; }
+
+/* History */
+.history { max-width: 1080px; margin: 0 auto; }
+.hist-head { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.hist-head h1 { font-size: 1.5rem; }
+.hist-head .btn:last-child { margin-inline-start: auto; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.8rem; margin-bottom: 1rem; }
+.stat { text-align: start; cursor: pointer; padding: 1rem; display: flex; flex-direction: column; gap: 0.15rem; color: var(--ink); font: inherit; }
+.stat strong { font-size: 2rem; color: var(--c, var(--ink)); }
+.stat-label { color: var(--c, var(--muted)); font-weight: 600; font-size: 0.9rem; }
+.stat.is-active { border-color: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 20%, transparent), var(--shadow); }
+.stat-sub { display: flex; gap: 0.8rem; font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; flex-wrap: wrap; }
+.month { margin-bottom: 0.9rem; }
+.month-totals { display: flex; gap: 0.9rem; flex-wrap: wrap; }
+.heat { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; max-width: 420px; }
+.cell { display: block; aspect-ratio: 1; border-radius: 5px; background: var(--line); }
+.cell.pad { background: transparent; }
+.cell.l1 { background: color-mix(in srgb, var(--c) 30%, var(--line)); }
+.cell.l2 { background: color-mix(in srgb, var(--c) 55%, var(--line)); }
+.cell.l3 { background: color-mix(in srgb, var(--c) 80%, var(--line)); }
+.cell.l4 { background: var(--c); }
+.legend .cell { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin: 0 1px; --c: var(--teal); }

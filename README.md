@@ -1,8 +1,8 @@
 # DeskFlow
 
-Gentle, on-time reminders for laptop desk workers: **move every hour** (with a guided 3-minute stretch routine), **drink water**, and work in an **editable Pomodoro**. Guest-first; sign in with Google to sync settings and progress across devices.
+Gentle, on-time reminders for laptop desk workers: **move every hour** (guided 3-minute routine), **drink water**, **reset your mind** (2-minute exercises that do the opposite of scrolling), and work in an **editable Pomodoro**. Available in **English, العربية (RTL) and Français**. Guest-first; sign in with Google to sync settings and your full history across devices.
 
-Built with Vite + React 19 + Supabase (Google auth + Postgres with Row Level Security), installable as a PWA. Includes a progress board (today's goals, 7-day chart, streak).
+Built with Vite + React 19 + Supabase (Google auth + Postgres with Row Level Security), installable as a PWA on desktop, Android and iOS. Includes a progress board (today's goals, 7-day chart, streak), a working-days picker, an emoji-free icon set drawn in the logo's style, and an articulated animated figure (squats, hands up, side bends, marching…) that also ships as GIFs in `public/gifs/`.
 
 ## Why it's built this way (LLM-council decisions)
 
@@ -34,7 +34,7 @@ Works immediately in guest mode. To enable Google sign-in:
 5. **Project Settings → API**: copy the **Project URL** and **anon public** key.
 6. Locally: `cp .env.example .env.local`, fill both values, restart `npm run dev`.
 
-Data you collect, per user: `profiles.settings` (jsonb), `profiles.history` (30 days of daily counts), and one `events` row per action (`move` / `water` / `focus`) with a timestamp. Query `daily_totals` in the SQL editor or Table Editor for dashboards.
+Data you collect, per user: `profiles.settings` (jsonb), `profiles.history` (all daily counts since first use), and one `events` row per action (`move` / `water` / `focus` / `mind`) with a timestamp. Existing projects created before v4: run `supabase/migrations_002_mind.sql` once. Query `daily_totals` in the SQL editor or Table Editor for dashboards.
 
 ## Deploy to GitHub Pages (workflow included)
 
@@ -46,6 +46,32 @@ Data you collect, per user: `profiles.settings` (jsonb), `profiles.history` (30 
 4. Make sure that URL is in Supabase **Redirect URLs** (step 4 above), otherwise Google login bounces back to localhost.
 
 Custom domain instead? Set the domain in Pages settings, change `VITE_BASE_PATH` in the workflow to `/`, and update the Supabase Site URL.
+
+## Languages
+
+`src/i18n/{en,ar,fr}.js` hold every string, including stretch cues, mind exercises, desk tips and the post-work / day-off advice. The language is auto-detected from the browser, switchable from the landing page, header or Settings, and stored in settings (so it syncs). Arabic flips the document to `dir="rtl"`; layout uses logical properties so nothing else is needed. To add a language: copy `en.js`, translate, register it in `src/i18n/index.jsx`.
+
+## Mind reset
+
+A fourth reminder (default every 120 min) opens a 2-minute overlay with three exercises chosen from `MIND` in `defaults.js`: box breathing / physiological sigh (animated circle with phase + countdown), look up / far gaze (soft, unfocused eyes), stand or sit still like a mountain, 5-4-3-2-1 grounding, warm palms over the eyes. One thing on screen, big type, nothing to scroll.
+
+## History
+
+Daily counts are kept for the whole life of the account (≈20 KB/year) — in `localStorage` for guests and in `profiles.history` when signed in (merged by max per day across devices). The History view shows lifetime totals, best day, average per active day, active days, and a per-month heatmap for each metric; Settings and History both offer a CSV export.
+
+## Advice
+
+The bottom card is context-aware: a desk tip during working hours, **post-work recovery advice** after your quiet-hours start on a working day, and **day-off advice** on non-working days. All three lists live in the language files.
+
+## Install on Android / iOS / desktop
+
+DeskFlow is a PWA. On **Android Chrome** open the site → an "Install DeskFlow as an app" button appears in the footer (or use the browser menu → *Add to Home screen*); it then launches full-screen with its own icon. On **iOS Safari**: Share → *Add to Home Screen*. On desktop Chrome/Edge: the install icon in the address bar or the footer button. Icons: `public/icon-*.png` (any + maskable), generated from `icon.svg` by `scripts/render-assets.mjs`.
+
+For a Play Store listing later, wrap the same URL with a Trusted Web Activity (Bubblewrap) — no code changes needed.
+
+## Movement GIFs
+
+`public/gifs/*.gif` (240×240, 24 frames, ~40 KB each): `handsup`, `squat`, `sidebend`, `march`, `calf`, `neck`, `shoulders`, `lunge`, `fold`, `wrist`, `eyes`, `walk`, `reach`. They are rendered from the same CSS keyframes the app uses (`StretchFigure.jsx` + `index.css`), so the app and the GIFs always match. Regenerate with `node scripts/render-assets.mjs` (needs Playwright) and assemble with Pillow, or just use them in docs, Slack, or the README.
 
 ## Seedance / Higgsfield video assets (optional)
 
@@ -65,25 +91,50 @@ The UI works with animated SVG figures. If you generate clips (Seedance 2.5 need
 
 Videos are excluded from the PWA precache on purpose.
 
+## Architecture (after the code-structure council)
+
+The rule: **hooks own behaviour, `lib/` owns pure logic, components own pixels, the registry owns the vocabulary.**
+
+- `src/reminders/registry.js` — the single table of kinds (`move`, `water`, `focus`, `mind`): icon, colour, goal, defaults, overlay. Cards, settings, board, history and the i18n check all iterate it. **Adding a reminder = one entry here + its strings in each language file.**
+- `src/lib/reminderEngine.js` — pure wall-clock state machine (`tick`, `done`, `snooze`, `skip`, `reanchor`, `derive`). No React, no `Date.now()`; every function takes `now`.
+- `src/lib/history.js` — pure history maths (`increment`, `mergeMax`, `computeStreak`, `computeStats`, `toCsv`).
+- `src/lib/storage.js` — versioned `localStorage` (`{v, data}` envelope + `migrate`), cross-tab `onExternalChange`.
+- `src/hooks/useSyncedDoc.js` — the one local-first/cloud-mirrored document primitive (debounce, retry with backoff, cross-tab merge, sign-in merge). `useSettings` and `useHistory` are thin wrappers.
+- `src/hooks/useReminders.js` — all timers in one hook driven by the registry + engine; one `reminders` document in storage (legacy per-kind keys are imported once).
+- `src/hooks/useAlertCenter.js` — chime / notification / banner / tab-title side effects behind `raise(key)`.
+- `src/hooks/useStepTimer.js` — shared step sequencer for the movement and mind overlays.
+- `src/App.jsx` — composition only.
+
+Tests (`npm test`, Vitest + Testing Library): quiet-hours logic, the reminder engine (fires once after sleep, quiet skip, re-anchor, day rollover), history merge/streak/stats, versioned storage + migrations, hook wiring (`onDue` exactly once, legacy import), and i18n completeness (key sets, types, placeholders, registry ↔ strings). `npm run check` = i18n check + tests + build; CI runs it before every deploy.
+
 ## Project structure
 
 ```
 src/
   supabase.js          Supabase client (null when env vars are missing → guest mode)
+  reminders/registry.js  the kinds table (see Architecture)
   lib/
-    defaults.js        default settings, stretch routine, desk tips
+    defaults.js        default settings (+ migrations), stretch + mind exercise structure
+    reminderEngine.js  pure timer state machine
+    history.js         pure history maths
     time.js            formatting + quiet-hours logic
     alerts.js          WebAudio chime, Notification API helpers
-    storage.js         localStorage helpers, deepMerge
+    storage.js         versioned localStorage, cross-tab events, deepMerge
     cloud.js           profiles upsert/fetch + events insert
   hooks/
     useNow.js          coarse ticker that also fires on visibility/focus
-    useReminder.js     wall-clock reminder engine (Move & Water are two instances)
+    useReminders.js    all reminder timers (registry × engine)
     usePomodoro.js     editable Pomodoro, remaining = endsAt - now
-    useSettings.js     localStorage + debounced Supabase mirror
-    useHistory.js      daily counters, 7-day/streak maths, events logging
+    useSyncedDoc.js    local-first + cloud-mirrored document primitive
+    useSettings.js     settings on useSyncedDoc
+    useHistory.js      history on useSyncedDoc + events logging
+    useAlertCenter.js  alert side effects
+    useStepTimer.js    step sequencer for overlays
     useAuth.js         Google sign-in via Supabase Auth (OAuth redirect)
-  components/          Landing, Header, ReminderCard, PomodoroCard, ProgressBoard, BreakOverlay, SettingsPanel, Ring, StretchFigure
+  i18n/                en.js, ar.js, fr.js + provider/useT hook
+  components/          Landing, Header, ReminderCard, PomodoroCard, ProgressBoard, AdviceCard, HistoryView, BreakOverlay, MindOverlay, SettingsPanel, Ring, Icon, StretchFigure
+  hooks/useInstallPrompt.js  PWA install button (beforeinstallprompt)
+scripts/render-assets.mjs  renders PNG icons + GIF frames from the SVG figure
 supabase/schema.sql    tables, RLS policies, daily_totals view
 .github/workflows/     GitHub Pages deploy
 ```

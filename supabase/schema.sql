@@ -12,7 +12,7 @@ create table if not exists public.profiles (
 create table if not exists public.events (
   id          bigint generated always as identity primary key,
   user_id     uuid not null references auth.users (id) on delete cascade,
-  kind        text not null check (kind in ('move', 'water', 'focus')),
+  kind        text not null check (kind in ('move', 'water', 'focus', 'mind')),
   meta        jsonb,
   created_at  timestamptz not null default now()
 );
@@ -42,6 +42,7 @@ select user_id,
        (created_at at time zone 'utc')::date as day,
        count(*) filter (where kind = 'move')  as moves,
        count(*) filter (where kind = 'water') as water,
-       count(*) filter (where kind = 'focus') as focus
+       count(*) filter (where kind = 'focus') as focus,
+       count(*) filter (where kind = 'mind')  as mind
 from public.events
 group by 1, 2;

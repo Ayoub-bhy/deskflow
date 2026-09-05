@@ -1,93 +1,43 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useStepTimer } from '../hooks/useStepTimer'
 import StretchFigure from './StretchFigure'
+import Icon from './Icon'
 import { STRETCHES } from '../lib/defaults'
 import { fmtClock } from '../lib/time'
+import { useT } from '../i18n'
 
-/**
- * Guided ~3-minute movement routine shown when a Move reminder is accepted.
- * Steps rotate so users don't see the same 4 stretches every hour.
- * If public/videos/<pose>.mp4 exists it plays (muted, lazy); otherwise the SVG figure.
- */
+/** Guided ~3-minute movement routine; steps rotate hourly. Videos in public/videos/<pose>.mp4 override the figure. */
 export default function BreakOverlay({ onDone, onClose, sound }) {
+  const { t } = useT()
   const steps = useMemo(() => {
     const seed = new Date().getHours()
     const rotated = [...STRETCHES.slice(seed % STRETCHES.length), ...STRETCHES.slice(0, seed % STRETCHES.length)]
-    const picked = rotated.filter((s) => s.id !== 'walk').slice(0, 4)
-    picked.push(STRETCHES.find((s) => s.id === 'walk'))
-    return picked
+    return [...rotated.filter((s) => s.id !== 'walk').slice(0, 5), STRETCHES.find((s) => s.id === 'walk')]
   }, [])
 
-  const [i, setI] = useState(0)
-  const step = steps[i]
-  const [endsAt, setEndsAt] = useState(() => Date.now() + step.seconds * 1000)
-  const [now, setNow] = useState(Date.now())
-  const [videoOk, setVideoOk] = useState(true)
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 250)
-    return () => clearInterval(id)
-  }, [])
-
-  useEffect(() => {
-    setEndsAt(Date.now() + steps[i].seconds * 1000)
-    setVideoOk(true)
-  }, [i, steps])
-
-  useEffect(() => {
-    if (now >= endsAt) {
-      if (i < steps.length - 1) {
-        sound?.()
-        setI(i + 1)
-      } else {
-        onDone()
-      }
-    }
-  }, [now, endsAt, i, steps.length, onDone, sound])
-
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  const remaining = Math.max(0, endsAt - now)
-  const total = step.seconds * 1000
+  const { i, step, remaining, total, next } = useStepTimer(steps, { onStep: sound, onFinish: onDone, onClose })
+  const [videoFailed, setVideoFailed] = useState({})
+  const videoOk = !videoFailed[step.pose]
+  const [title, cue] = t(`stretches.${step.id}`)
 
   return (
-    <div className="overlay" role="dialog" aria-modal="true" aria-label="Movement break">
+    <div className="overlay" role="dialog" aria-modal="true" aria-label={t('reminder.move.title')}>
       <div className="overlay-card">
         <div className="overlay-top">
-          <span className="pill">Step {i + 1} of {steps.length}</span>
-          <button className="btn ghost small" onClick={onClose} aria-label="Close">✕</button>
+          <span className="pill">{t('routine.step', { a: i + 1, b: steps.length })}</span>
+          <button className="btn ghost small" onClick={onClose} aria-label={t('routine.close')}><Icon name="close" size={16} /></button>
         </div>
-
         <div className="overlay-media">
-          {videoOk ? (
-            <video
-              key={step.pose}
-              className="stretch-video"
-              src={`${import.meta.env.BASE_URL}videos/${step.pose}.mp4`}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="none"
-              onError={() => setVideoOk(false)}
-            />
-          ) : null}
+          {videoOk && <video key={step.pose} className="stretch-video" src={`${import.meta.env.BASE_URL}videos/${step.pose}.mp4`} autoPlay muted loop playsInline preload="none" onError={() => setVideoFailed((f) => ({ ...f, [step.pose]: true }))} />}
           {!videoOk && <StretchFigure pose={step.pose} size={200} />}
         </div>
-
-        <h2>{step.title}</h2>
-        <p className="cue">{step.cue}</p>
-
-        <div className="stepbar" aria-hidden="true">
-          <span style={{ width: `${(1 - remaining / total) * 100}%` }} />
-        </div>
+        <h2>{title}</h2>
+        <p className="cue">{cue}</p>
+        <div className="stepbar" aria-hidden="true"><span style={{ width: `${(1 - remaining / total) * 100}%` }} /></div>
         <div className="overlay-actions">
           <strong className="clock small">{fmtClock(remaining)}</strong>
-          <button className="btn ghost" onClick={() => (i < steps.length - 1 ? setI(i + 1) : onDone())}>Next</button>
-          <button className="btn primary" onClick={onDone}>Done, back to work</button>
+          <button className="btn ghost" onClick={next}>{t('routine.next')}</button>
+          <button className="btn primary" onClick={onDone}>{t('routine.done')}</button>
         </div>
       </div>
     </div>

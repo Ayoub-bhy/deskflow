@@ -7,11 +7,12 @@ export function fmtClock(ms) {
   return `${m}:${String(r).padStart(2, '0')}`
 }
 
-export function fmtRelative(ms) {
-  if (ms <= 0) return 'now'
+export function fmtRelative(ms, t) {
+  const unit = t ? t('reminder.min') : 'min'
+  if (ms <= 0) return t ? t('reminder.now') : 'now'
   const m = Math.round(ms / MIN)
-  if (m < 1) return '<1 min'
-  if (m < 60) return `${m} min`
+  if (m < 1) return `<1 ${unit}`
+  if (m < 60) return `${m} ${unit}`
   const h = Math.floor(m / 60)
   const rm = m % 60
   return rm ? `${h}h ${rm}m` : `${h}h`
@@ -26,7 +27,8 @@ function parseHM(str) {
 export function inQuietHours(q, date = new Date()) {
   if (!q?.enabled) return false
   const day = date.getDay()
-  if (q.weekdaysOnly && (day === 0 || day === 6)) return true
+  const workDays = Array.isArray(q.workDays) ? q.workDays : q.weekdaysOnly === false ? [0, 1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5]
+  if (!workDays.includes(day)) return true
   const now = date.getHours() * 60 + date.getMinutes()
   const start = parseHM(q.start)
   const end = parseHM(q.end)

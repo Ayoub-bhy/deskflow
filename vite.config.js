@@ -12,7 +12,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'DeskFlow — healthy desk habits',
         short_name: 'DeskFlow',
@@ -23,13 +23,19 @@ export default defineConfig({
         start_url: base,
         scope: base,
         icons: [
-          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
+        categories: ['health', 'productivity'],
+        orientation: 'any',
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,mp3}'],
         // Videos are optional / large: never precache them.
-        globIgnores: ['**/videos/**'],
+        globIgnores: ['**/videos/**', '**/gifs/**'],
       },
     }),
   ],

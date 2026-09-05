@@ -1,146 +1,144 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useSettings } from './hooks/useSettings'
 import { useNow } from './hooks/useNow'
-import { useReminder } from './hooks/useReminder'
+import { useReminders } from './hooks/useReminders'
 import { usePomodoro } from './hooks/usePomodoro'
 import { useHistory } from './hooks/useHistory'
-import { chime, notify, unlockAudio, requestNotifications, notificationsSupported } from './lib/alerts'
+import { useAlertCenter } from './hooks/useAlertCenter'
+import { useInstallPrompt } from './hooks/useInstallPrompt'
+import { chime, unlockAudio, requestNotifications, notificationsSupported } from './lib/alerts'
 import { inQuietHours } from './lib/time'
-import { TIPS } from './lib/defaults'
 import { load, save } from './lib/storage'
+import { REMINDER_KINDS, byId } from './reminders/registry'
+import { I18nProvider, useT, detectLang } from './i18n'
 import Landing from './components/Landing'
 import Header from './components/Header'
 import ReminderCard from './components/ReminderCard'
 import PomodoroCard from './components/PomodoroCard'
 import BreakOverlay from './components/BreakOverlay'
+import MindOverlay from './components/MindOverlay'
 import SettingsPanel from './components/SettingsPanel'
 import ProgressBoard from './components/ProgressBoard'
+import AdviceCard from './components/AdviceCard'
+import HistoryView from './components/HistoryView'
+import Icon from './components/Icon'
+
+const OVERLAYS = { move: BreakOverlay, mind: MindOverlay }
 
 export default function App() {
   const auth = useAuth()
+  const { settings, update, reset, syncState } = useSettings(auth.user)
+  const lang = settings.lang || detectLang()
+  return (
+    <I18nProvider lang={lang}>
+      <Shell auth={auth} settings={settings} update={update} reset={reset} syncState={syncState} lang={lang} onLang={(l) => update({ lang: l })} />
+    </I18nProvider>
+  )
+}
+
+/** Composition only: hooks own the behaviour, components own the pixels. */
+function Shell({ auth, settings, update, reset, syncState, lang, onLang }) {
+  const { t } = useT()
+  const now = useNow(1000)
   const [guest, setGuest] = useState(() => load('guest', false))
+  const [armed, setArmed] = useState(() => load('armed', false))
+  const [view, setView] = useState('dash') // dash | history
+  const [overlay, setOverlay] = useState(null) // 'move' | 'mind' | null
+  const [settingsOpen, setSettingsOpen] = useState(false)
   useEffect(() => save('guest', guest), [guest])
 
-  const { settings, update, reset, syncState } = useSettings(auth.user)
-  const hist = useHistory(auth.user)
-  const record = hist.record
-  const now = useNow(1000)
-
-  const [banner, setBanner] = useState(null) // { kind, text }
-  const [breakOpen, setBreakOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [armed, setArmed] = useState(() => load('armed', false)) // user clicked once → audio/notifications unlocked
-
-  const alert = useCallback(
-    (title, body, tag) => {
-      if (settings.alerts.sound) chime(settings.alerts.volume)
-      if (settings.alerts.notifications && document.visibilityState !== 'visible') notify(title, body, tag)
-      setBanner({ tag, text: `${title} — ${body}` })
-      document.title = `⏰ ${title} · DeskFlow`
-    },
-    [settings.alerts],
-  )
-
-  const onDue = useCallback(
-    (kind) =>
-      kind === 'move'
-        ? alert('Time to move', 'Stand up for a 3-minute stretch.', 'move')
-        : alert('Water break', 'A few sips, then back to it.', 'water'),
-    [alert],
-  )
-
-  const move = useReminder('move', settings.move, now, settings.quietHours, onDue, record)
-  const water = useReminder('water', settings.water, now, settings.quietHours, onDue, record)
-
-  const onPhaseEnd = useCallback(
-    (phase) => {
-      if (phase === 'focus') {
-        record('focus')
-        alert('Focus block done', 'Take your break — stand up while you’re at it.', 'pomo')
-      } else alert('Break over', 'Ready for the next focus block?', 'pomo')
-    },
-    [alert, record],
-  )
+  const hist = useHistory(auth.user, now)
+  const alerts = useAlertCenter(settings.alerts, t)
+  const onDue = useCallback((id) => alerts.raiseStable(id, id), [alerts.raiseStable])
+  const reminders = useReminders(settings, now, settings.quietHours, onDue, hist.record)
+  alerts.setAnyDue(REMINDER_KINDS.some((k) => reminders[k.id].due))
+  const { record } = hist
+  const { raiseStable } = alerts
+  const onPhaseEnd = useCallback((phase) => {
+    if (phase === 'focus') { record('focus'); raiseStable('focusDone', 'pomo') } else raiseStable('breakDone', 'pomo')
+  }, [record, raiseStable])
   const pomo = usePomodoro(settings.pomodoro, now, onPhaseEnd)
-
-  // Restore the tab title once nothing is due.
-  useEffect(() => {
-    if (!move.due && !water.due && !banner) document.title = 'DeskFlow'
-  }, [move.due, water.due, banner])
-
+  const install = useInstallPrompt()
   const quiet = inQuietHours(settings.quietHours, new Date(now))
-  const tip = useMemo(() => TIPS[Math.floor(now / 3_600_000) % TIPS.length], [now])
 
   const arm = async () => {
-    unlockAudio()
-    setArmed(true)
-    save('armed', true)
+    unlockAudio(); setArmed(true); save('armed', true)
     if (notificationsSupported() && Notification.permission === 'default') {
-      const r = await requestNotifications()
-      update({ alerts: { notifications: r === 'granted' } })
+      update({ alerts: { notifications: (await requestNotifications()) === 'granted' } })
     }
   }
+  const exportCsv = () => downloadText(`deskflow-history-${new Date().toISOString().slice(0, 10)}.csv`, hist.toCsv(), 'text/csv')
+  const openOverlay = (id) => { alerts.dismiss(); setOverlay(id) }
 
-  if (auth.loading) return <div className="splash">Loading…</div>
-  if (!auth.user && !guest) return <Landing auth={auth} onGuest={() => setGuest(true)} />
+  if (auth.loading) return <div className="splash">{t('app.loading')}</div>
+  if (!auth.user && !guest) return <Landing auth={auth} onGuest={() => setGuest(true)} lang={lang} onLang={onLang} />
+
+  const Overlay = overlay ? OVERLAYS[overlay] : null
 
   return (
     <div className="app" onClickCapture={() => !armed && unlockAudio()}>
-      <Header auth={auth} syncState={syncState} onSettings={() => setSettingsOpen(true)} onLeaveGuest={() => setGuest(false)} />
+      <Header auth={auth} syncState={syncState} lang={lang} onLang={onLang} onSettings={() => setSettingsOpen(true)} onHistory={() => setView((v) => (v === 'history' ? 'dash' : 'history'))} onLeaveGuest={() => setGuest(false)} />
 
-      {!armed && (
-        <div className="notice">
-          <span>Reminders need one click to unlock sound and desktop notifications.</span>
-          <button className="btn primary small" onClick={arm}>Enable reminders</button>
-        </div>
-      )}
-      {armed && quiet && settings.quietHours.enabled && (
-        <div className="notice quiet">Quiet hours — Move and Water reminders are paused. Pomodoro still works.</div>
-      )}
-      {banner && (
-        <div className={`toast toast-${banner.tag}`} role="status">
-          <span>{banner.text}</span>
-          <button className="btn ghost small" onClick={() => setBanner(null)} aria-label="Dismiss">✕</button>
-        </div>
+      {view === 'history' ? (
+        <HistoryView stats={hist.stats} onBack={() => setView('dash')} onExport={exportCsv} />
+      ) : (
+        <>
+          {!armed && (
+            <div className="notice">
+              <span>{t('notice.arm')}</span>
+              <button className="btn primary small" onClick={arm}>{t('notice.armBtn')}</button>
+            </div>
+          )}
+          {armed && quiet && settings.quietHours.enabled && <div className="notice quiet">{t('notice.quiet')}</div>}
+          {alerts.banner && (
+            <div className={`toast toast-${alerts.banner.tag}`} role="status">
+              <span>{alerts.banner.text}</span>
+              <button className="btn ghost small" onClick={alerts.dismiss} aria-label={t('routine.close')}><Icon name="close" size={16} /></button>
+            </div>
+          )}
+
+          <main className="grid">
+            {REMINDER_KINDS.map((k) => (
+              <ReminderCard
+                key={k.id}
+                kind={k.id}
+                cfg={settings[k.id]}
+                r={reminders[k.id]}
+                onToggle={(enabled) => update({ [k.id]: { enabled } })}
+                onIntervalChange={(intervalMin) => update({ [k.id]: { intervalMin } })}
+                onOpen={k.overlay ? () => openOverlay(k.id) : undefined}
+              />
+            ))}
+            <PomodoroCard cfg={settings.pomodoro} p={pomo} onChange={(patch) => update({ pomodoro: patch })} />
+            <ProgressBoard today={hist.today} week={hist.week} streak={hist.streak} onHistory={() => setView('history')} />
+            <AdviceCard quietHours={settings.quietHours} now={now} />
+          </main>
+
+          <footer className="foot muted small">
+            {install.canInstall ? (
+              <button className="btn small with-icon" onClick={install.prompt}><Icon name="install" size={16} /> {t('footer.install')}</button>
+            ) : install.isIOS && !install.installed ? t('footer.ios') : install.installed ? t('footer.installed') : t('footer.tab')}
+          </footer>
+        </>
       )}
 
-      <main className="grid">
-        <ReminderCard
-          kind="move"
-          cfg={settings.move}
-          r={move}
-          onToggle={(enabled) => update({ move: { enabled } })}
-          onIntervalChange={(intervalMin) => update({ move: { intervalMin } })}
-          onOpenBreak={() => { setBanner(null); setBreakOpen(true) }}
+      {Overlay && (
+        <Overlay
+          sound={() => settings.alerts.sound && chime(settings.alerts.volume * (byId[overlay].chime ?? 0.5))}
+          onDone={() => { reminders[overlay].done(); setOverlay(null); alerts.dismiss() }}
+          onClose={() => setOverlay(null)}
         />
-        <ReminderCard
-          kind="water"
-          cfg={settings.water}
-          r={water}
-          onToggle={(enabled) => update({ water: { enabled } })}
-          onIntervalChange={(intervalMin) => update({ water: { intervalMin } })}
-        />
-        <PomodoroCard cfg={settings.pomodoro} p={pomo} onChange={(patch) => update({ pomodoro: patch })} />
-        <ProgressBoard today={hist.today} week={hist.week} streak={hist.streak} />
-        <section className="card tip">
-          <h2>💡 Desk tip</h2>
-          <p>{tip}</p>
-        </section>
-      </main>
-
-      <footer className="foot muted small">
-        Runs while this tab is open — pin it, or install DeskFlow as an app from your browser menu. Sleep and background throttling are handled.
-      </footer>
-
-      {breakOpen && (
-        <BreakOverlay
-          sound={() => settings.alerts.sound && chime(settings.alerts.volume * 0.5)}
-          onDone={() => { move.done(); setBreakOpen(false); setBanner(null) }}
-          onClose={() => setBreakOpen(false)}
-        />
       )}
-      {settingsOpen && <SettingsPanel settings={settings} update={update} reset={reset} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsPanel settings={settings} update={update} reset={reset} lang={lang} onLang={onLang} startedAt={hist.stats.startedAt} onExport={exportCsv} onClose={() => setSettingsOpen(false)} />}
     </div>
   )
+}
+
+function downloadText(name, text, type) {
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([text], { type }))
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(a.href)
 }
