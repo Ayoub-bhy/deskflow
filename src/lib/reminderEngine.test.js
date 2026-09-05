@@ -34,6 +34,13 @@ describe('reminder engine', () => {
     expect(r.state.nextAt).toBe(evening + 60 * MIN)
   })
 
+  it('holds without rescheduling while paused, then fires when the pause lifts', () => {
+    const s = initialState(T0, 60)
+    const held = tick(s, cfg, T0 + 70 * MIN, noQuiet, true)
+    expect(held).toEqual({ state: s, fired: null })
+    expect(tick(held.state, cfg, T0 + 80 * MIN, noQuiet, false).fired).toBe(T0 + 60 * MIN)
+  })
+
   it('does nothing while disabled', () => {
     const s = initialState(T0, 60)
     expect(tick(s, { ...cfg, enabled: false }, T0 + 500 * MIN, noQuiet)).toEqual({ state: s, fired: null })

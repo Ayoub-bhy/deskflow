@@ -1,12 +1,13 @@
 import Ring from './Ring'
 import Icon from './Icon'
-import { KINDS, KIND_IDS, GOALS } from '../reminders/registry'
+import { KINDS as ALL_KINDS, GOALS } from '../reminders/registry'
 import { useT } from '../i18n'
 
-const SERIES = KINDS.map((k) => ({ key: k.id, icon: k.icon, color: k.color }))
 
-export default function ProgressBoard({ today, week, streak, onHistory }) {
+export default function ProgressBoard({ today, week, streak, onHistory, kinds = ALL_KINDS }) {
   const { t } = useT()
+  const SERIES = kinds.map((k) => ({ key: k.id, icon: k.icon, color: k.color }))
+  const KIND_IDS = kinds.map((k) => k.id)
   const label = Object.fromEntries(KIND_IDS.map((k) => [k, t(`kinds.${k}`)]))
   const score = Math.round((KIND_IDS.reduce((acc, k) => acc + Math.min(1, today[k] / GOALS[k]), 0) / KIND_IDS.length) * 100)
 
@@ -46,32 +47,33 @@ export default function ProgressBoard({ today, week, streak, onHistory }) {
         </ul>
       </div>
 
-      <WeekChart week={week} days={t('board.days')} label={label} moveGoal={t('board.moveGoal')} />
+      <WeekChart week={week} days={t('board.days')} label={label} moveGoal={t('board.moveGoal')} series={SERIES} />
       <div className="board-foot">
-        <p className="muted small">{t('board.goals', { m: GOALS.move, w: GOALS.water, f: GOALS.focus, r: GOALS.mind })}</p>
+        <p className="muted small">{t('board.goalsPrefix')} {SERIES.map((s) => `${GOALS[s.key]} ${label[s.key].toLowerCase()}`).join(' · ')}</p>
         <button className="btn ghost small with-icon" onClick={onHistory}><Icon name="progress" size={14} /> {t('header.history')}</button>
       </div>
     </section>
   )
 }
 
-function WeekChart({ week, days, label, moveGoal }) {
+function WeekChart({ week, days, label, moveGoal, series: SERIES }) {
   const W = 420, H = 110, pad = 8
   const groupW = (W - pad * 2) / 7
-  const barW = groupW / 5.5
-  const max = Math.max(GOALS.move, ...week.flatMap((d) => KIND_IDS.map((k) => d[k])))
+  const n = SERIES.length
+  const barW = groupW / (n + 1.5)
+  const max = Math.max(GOALS.move, ...week.flatMap((d) => SERIES.map((s) => d[s.key] || 0)))
   const goalY = H - (GOALS.move / max) * (H - 10)
   return (
     <div className="weekchart">
       <svg viewBox={`0 0 ${W} ${H + 22}`} role="img">
         <line x1={pad} x2={W - pad} y1={goalY} y2={goalY} className="goal-line" />
         {week.map((d, i) => {
-          const x0 = pad + i * groupW + (groupW - barW * 4 - 9) / 2
+          const x0 = pad + i * groupW + (groupW - barW * n - 3 * (n - 1)) / 2
           return (
             <g key={d.key} className={d.isToday ? 'today' : ''}>
               {SERIES.map((s, j) => {
-                const h = (d[s.key] / max) * (H - 10)
-                return <rect key={s.key} x={x0 + j * (barW + 3)} y={H - h} width={barW} height={h} rx="3" fill={s.color} opacity={d.isToday ? 1 : 0.55}><title>{`${days[d.dow]}: ${d[s.key]} ${label[s.key]}`}</title></rect>
+                const h = ((d[s.key] || 0) / max) * (H - 10)
+                return <rect key={s.key} x={x0 + j * (barW + 3)} y={H - h} width={barW} height={h} rx="3" fill={s.color} opacity={d.isToday ? 1 : 0.55}><title>{`${days[d.dow]}: ${d[s.key] || 0} ${label[s.key]}`}</title></rect>
               })}
               <text x={pad + i * groupW + groupW / 2} y={H + 16} textAnchor="middle" className="axis">{days[d.dow]}</text>
             </g>

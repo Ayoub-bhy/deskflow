@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import Icon from './Icon'
 import { useT } from '../i18n'
-import { KINDS as REG, KIND_IDS as KINDS, GOALS } from '../reminders/registry'
+import { KINDS as REG, GOALS } from '../reminders/registry'
 
 const COLOR = Object.fromEntries(REG.map((k) => [k.id, k.color]))
 const ICON = Object.fromEntries(REG.map((k) => [k.id, k.icon]))
 
-export default function HistoryView({ stats, onBack, onExport }) {
+export default function HistoryView({ stats, onBack, onExport, kinds = REG }) {
   const { t, lang } = useT()
+  const KINDS = kinds.map((k) => k.id)
   const [kind, setKind] = useState('move')
   const fmtDate = (k) => new Date(k + 'T12:00:00').toLocaleDateString(lang, { day: 'numeric', month: 'short', year: 'numeric' })
   const fmtMonth = (k) => new Date(k + '-15T12:00:00').toLocaleDateString(lang, { month: 'long', year: 'numeric' })

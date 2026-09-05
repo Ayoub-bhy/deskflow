@@ -10,7 +10,12 @@ import { useInstallPrompt } from './hooks/useInstallPrompt'
 import { chime, unlockAudio, requestNotifications, notificationsSupported } from './lib/alerts'
 import { inQuietHours } from './lib/time'
 import { load, save } from './lib/storage'
-import { REMINDER_KINDS, byId } from './reminders/registry'
+import { REMINDER_KINDS, byId, visibleKinds } from './reminders/registry'
+import { usePrayer } from './faith/usePrayer'
+import FaithPrompt from './faith/FaithPrompt'
+import PrayerCard from './faith/PrayerCard'
+import FaithCard from './faith/FaithCard'
+import DhikrOverlay from './faith/DhikrOverlay'
 import { I18nProvider, useT, detectLang } from './i18n'
 import Landing from './components/Landing'
 import Header from './components/Header'
@@ -24,7 +29,7 @@ import AdviceCard from './components/AdviceCard'
 import HistoryView from './components/HistoryView'
 import Icon from './components/Icon'
 
-const OVERLAYS = { move: BreakOverlay, mind: MindOverlay }
+const OVERLAYS = { move: BreakOverlay, mind: MindOverlay, dhikr: DhikrOverlay }
 
 export default function App() {
   const auth = useAuth()
@@ -50,9 +55,29 @@ function Shell({ auth, settings, update, reset, syncState, lang, onLang }) {
 
   const hist = useHistory(auth.user, now)
   const alerts = useAlertCenter(settings.alerts, t)
-  const onDue = useCallback((id) => alerts.raiseStable(id, id), [alerts.raiseStable])
-  const reminders = useReminders(settings, now, settings.quietHours, onDue, hist.record)
-  alerts.setAnyDue(REMINDER_KINDS.some((k) => reminders[k.id].due))
+
+  // Faith layer: opt-in, private, silent unless its own sound toggle is on.
+  const faith = settings.faith
+  const faithOn = faith.enabled === true
+  const [faithHidden, setFaithHidden] = useState(false) // "hide for this session" (demo / screen-share)
+  const kinds = visibleKinds(faithOn)
+  const activeIds = REMINDER_KINDS.filter((k) => faithOn || !k.faith).map((k) => k.id)
+  const P = t('faith.prayers')
+  const onPrayerAlert = useCallback((key, p) => {
+    const name = p.isJumuah ? t('faith.jumuah') : P[p.name]
+    const mins = Math.max(1, Math.round((p.at - Date.now()) / 60000))
+    alerts.raiseStable(key, 'prayer', { p: name, m: mins }, { sound: faith.sound, discreet: faith.discreet })
+    if (key === 'prayer') hist.record('prayer')
+  }, [alerts.raiseStable, t, P, faith.sound, faith.discreet, hist.record]) // eslint-disable-line react-hooks/exhaustive-deps
+  const prayer = usePrayer(faith.prayer, faithOn, now, onPrayerAlert)
+  const prayerPause = faithOn && faith.prayer.pauseOthers && Boolean(prayer.window)
+
+  const onDue = useCallback((id) => {
+    const isFaith = Boolean(byId[id].faith)
+    alerts.raiseStable(id, id, undefined, isFaith ? { sound: faith.sound, discreet: faith.discreet } : undefined)
+  }, [alerts.raiseStable, faith.sound, faith.discreet])
+  const reminders = useReminders(settings, now, settings.quietHours, onDue, hist.record, { paused: prayerPause, active: activeIds })
+  alerts.setAnyDue(activeIds.some((id) => reminders[id].due))
   const { record } = hist
   const { raiseStable } = alerts
   const onPhaseEnd = useCallback((phase) => {
@@ -81,7 +106,7 @@ function Shell({ auth, settings, update, reset, syncState, lang, onLang }) {
       <Header auth={auth} syncState={syncState} lang={lang} onLang={onLang} onSettings={() => setSettingsOpen(true)} onHistory={() => setView((v) => (v === 'history' ? 'dash' : 'history'))} onLeaveGuest={() => setGuest(false)} />
 
       {view === 'history' ? (
-        <HistoryView stats={hist.stats} onBack={() => setView('dash')} onExport={exportCsv} />
+        <HistoryView stats={hist.stats} onBack={() => setView('dash')} onExport={exportCsv} kinds={kinds} />
       ) : (
         <>
           {!armed && (
@@ -92,14 +117,18 @@ function Shell({ auth, settings, update, reset, syncState, lang, onLang }) {
           )}
           {armed && quiet && settings.quietHours.enabled && <div className="notice quiet">{t('notice.quiet')}</div>}
           {alerts.banner && (
-            <div className={`toast toast-${alerts.banner.tag}`} role="status">
+            <div className={`toast toast-${alerts.banner.tag}`} role="status" title={alerts.banner.full || undefined}>
               <span>{alerts.banner.text}</span>
               <button className="btn ghost small" onClick={alerts.dismiss} aria-label={t('routine.close')}><Icon name="close" size={16} /></button>
             </div>
           )}
 
           <main className="grid">
-            {REMINDER_KINDS.map((k) => (
+            {faith.enabled === null && !faithHidden && <FaithPrompt onAnswer={(a) => (a === 'later' ? setFaithHidden(true) : update({ faith: { enabled: a } }))} />}
+            {faithOn && !faithHidden && (
+              <PrayerCard prayer={prayer} cfg={faith.prayer} now={now} onChange={(patch) => update({ faith: { prayer: patch } })} onHide={() => setFaithHidden(true)} />
+            )}
+            {REMINDER_KINDS.filter((k) => activeIds.includes(k.id) && !(k.faith && faithHidden)).map((k) => (
               <ReminderCard
                 key={k.id}
                 kind={k.id}
@@ -111,8 +140,10 @@ function Shell({ auth, settings, update, reset, syncState, lang, onLang }) {
               />
             ))}
             <PomodoroCard cfg={settings.pomodoro} p={pomo} onChange={(patch) => update({ pomodoro: patch })} />
-            <ProgressBoard today={hist.today} week={hist.week} streak={hist.streak} onHistory={() => setView('history')} />
-            <AdviceCard quietHours={settings.quietHours} now={now} />
+            <ProgressBoard today={hist.today} week={hist.week} streak={hist.streak} onHistory={() => setView('history')} kinds={kinds} />
+            {faithOn && !faithHidden && (faith.daily.ayah || faith.daily.hadith) && <FaithCard now={now} daily={faith.daily} />}
+            <AdviceCard quietHours={settings.quietHours} now={now} faith={faithOn} />
+            {faithOn && faithHidden && <p className="muted small center"><button className="btn ghost small" onClick={() => setFaithHidden(false)}>{t('faith.showSession')}</button></p>}
           </main>
 
           <footer className="foot muted small">
@@ -125,12 +156,13 @@ function Shell({ auth, settings, update, reset, syncState, lang, onLang }) {
 
       {Overlay && (
         <Overlay
+          faith={faithOn}
           sound={() => settings.alerts.sound && chime(settings.alerts.volume * (byId[overlay].chime ?? 0.5))}
           onDone={() => { reminders[overlay].done(); setOverlay(null); alerts.dismiss() }}
           onClose={() => setOverlay(null)}
         />
       )}
-      {settingsOpen && <SettingsPanel settings={settings} update={update} reset={reset} lang={lang} onLang={onLang} startedAt={hist.stats.startedAt} onExport={exportCsv} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsPanel settings={settings} update={update} reset={reset} lang={lang} onLang={onLang} startedAt={hist.stats.startedAt} onExport={exportCsv} onClose={() => setSettingsOpen(false)} prayerStatus={prayer.status} />}
     </div>
   )
 }

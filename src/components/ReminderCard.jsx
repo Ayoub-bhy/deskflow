@@ -69,7 +69,7 @@ export default function ReminderCard({ kind, cfg, r, onToggle, onIntervalChange,
                 {t(`${k}.note`) !== `${k}.note` && ` · ${t(`${k}.note`)}`}
               </p>
               <div className="actions">
-                {onOpen && m.overlay === 'mind' && <button className="btn ghost small" onClick={onOpen}>{t(`${k}.start`)}</button>}
+                {onOpen && m.overlay !== 'move' && <button className="btn ghost small" onClick={onOpen}>{t(`${k}.start`)}</button>}
                 <button className="btn ghost small" onClick={r.done}>{t('reminder.logNow')}</button>
                 <button className="btn ghost small" onClick={r.restart}>{t('reminder.restart')}</button>
               </div>

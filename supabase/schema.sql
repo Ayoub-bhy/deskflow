@@ -12,7 +12,7 @@ create table if not exists public.profiles (
 create table if not exists public.events (
   id          bigint generated always as identity primary key,
   user_id     uuid not null references auth.users (id) on delete cascade,
-  kind        text not null check (kind in ('move', 'water', 'focus', 'mind')),
+  kind        text not null check (kind in ('move', 'water', 'focus', 'mind', 'dhikr', 'prayer')),
   meta        jsonb,
   created_at  timestamptz not null default now()
 );

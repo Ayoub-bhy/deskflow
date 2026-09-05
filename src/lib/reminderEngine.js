@@ -20,11 +20,13 @@ export function initialState(now, intervalMin) {
  * dueAt timestamp when the reminder became due in this tick (caller alerts once
  * per distinct dueAt), or null.
  */
-export function tick(state, cfg, now, quietHours) {
+export function tick(state, cfg, now, quietHours, paused = false) {
   let s = state
   const day = dayOf(now)
   if (s.day !== day) s = { ...s, day, doneToday: 0 }
   if (!cfg.enabled || s.dueAt || now < s.nextAt) return { state: s, fired: null }
+  // Paused (e.g. prayer break): hold without rescheduling; it fires as soon as the pause lifts.
+  if (paused) return { state: s, fired: null }
   if (inQuietHours(quietHours, new Date(now))) {
     // Quiet: skip silently and try again one interval later.
     return { state: { ...s, nextAt: now + cfg.intervalMin * MIN }, fired: null }

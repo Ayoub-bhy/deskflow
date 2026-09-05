@@ -34,7 +34,7 @@ Works immediately in guest mode. To enable Google sign-in:
 5. **Project Settings → API**: copy the **Project URL** and **anon public** key.
 6. Locally: `cp .env.example .env.local`, fill both values, restart `npm run dev`.
 
-Data you collect, per user: `profiles.settings` (jsonb), `profiles.history` (all daily counts since first use), and one `events` row per action (`move` / `water` / `focus` / `mind`) with a timestamp. Existing projects created before v4: run `supabase/migrations_002_mind.sql` once. Query `daily_totals` in the SQL editor or Table Editor for dashboards.
+Data you collect, per user: `profiles.settings` (jsonb), `profiles.history` (all daily counts since first use), and one `events` row per action (`move` / `water` / `focus` / `mind`) with a timestamp. Existing projects: run `supabase/migrations_002_mind.sql` and `migrations_003_faith.sql` once (both already applied to the DeskFlow project). Query `daily_totals` in the SQL editor or Table Editor for dashboards.
 
 ## Deploy to GitHub Pages (workflow included)
 
@@ -62,6 +62,19 @@ Daily counts are kept for the whole life of the account (≈20 KB/year) — in `
 ## Advice
 
 The bottom card is context-aware: a desk tip during working hours, **post-work recovery advice** after your quiet-hours start on a working day, and **day-off advice** on non-working days. All three lists live in the language files.
+
+## Faith layer (opt-in)
+
+Asked once, explicitly, in every language — never inferred from locale — and off by default. Everything lives under `src/faith/` and two registry kinds (`dhikr`, `prayer`) flagged `faith: true`, so the rest of the app is untouched when it's off.
+
+- **Prayer times** — Aladhan monthly calendar (`api.aladhan.com/v1/calendar/{y}/{m}`), fetched once per month per (location, method, Asr school, high-latitude rule) and cached (`prayerCalendar`), next month prefetched in the last 3 days. Location via the browser once, or a typed city/country; nothing leaves the device except the Aladhan request. Method (Umm al-Qura default, 19 authorities selectable), Asr madhab, per-prayer minute offsets, a heads-up N minutes before, Friday Dhuhr shown as Jumu'ah with a longer window, Hijri date, and a **prayer break** that holds other reminders (they fire as soon as it ends, never rescheduled away). Freshness is checked every tick: missing day, >40 days old, or timezone mismatch shows a visible warning and never blocks anything. Times are computed in the browser's local timezone; the card warns when that differs from the location's.
+- **Dhikr** — a gentle reminder kind (default every 90 min) opening a tasbih counter with one phrase (Arabic, transliteration, meaning, source); salawat is weighted higher on Fridays. Sound is a *separate* toggle from the feature, for shared offices.
+- **Ayah & hadith of the day** — bundled at build time (`content/ayat.json` from alquran.cloud: Uthmani text, Saheeh International, Hamidullah; `content/hadith.js`: a curated set of sahih narrations with book/number references). Day-of-year rotation, no runtime fetch. Add only cited, graded-sahih narrations.
+- **Sunnah windows** as hints on the prayer card: morning adhkar (Fajr→sunrise), Duha (sunrise+20m → Dhuhr−20m), evening adhkar (Asr→Maghrib).
+- **Tawakkul / rizq** reflections appear only in the post-work and day-off advice and as an optional breathing step in the mind reset — never as a mid-sprint banner.
+- **Discreet mode** makes banners read "Reminder" to onlookers (full text on hover), and the eye icon on the prayer card hides all faith cards for the current session (demos, screen-shares).
+
+Pure logic is in `src/faith/prayer.js` (tested: parsing, next/previous prayer, Jumu'ah, offsets, windows, cache keys, freshness).
 
 ## Install on Android / iOS / desktop
 

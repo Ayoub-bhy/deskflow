@@ -12,18 +12,19 @@ import { useT } from '../i18n'
  * then a gaze or stillness exercise, then one more.
  * Deliberately no images, no scrolling, big type, one thing on screen.
  */
-export default function MindOverlay({ onDone, onClose, sound }) {
+export default function MindOverlay({ onDone, onClose, sound, faith = false }) {
   const { t } = useT()
   const steps = useMemo(() => {
     const h = new Date().getHours()
-    const breath = MIND.filter((m) => m.kind === 'breath')
-    const rest = MIND.filter((m) => m.kind !== 'breath')
+    const pool = MIND.filter((m) => faith || !m.faith)
+    const breath = pool.filter((m) => m.kind === 'breath')
+    const rest = pool.filter((m) => m.kind !== 'breath')
     const pick = (arr, n, seed) => Array.from({ length: n }, (_, i) => arr[(seed + i * 3) % arr.length])
     return [breath[h % breath.length], ...pick(rest, 2, h)]
-  }, [])
+  }, [faith])
 
   const { i, step, remaining, elapsed, next } = useStepTimer(steps, { onStep: sound, onFinish: onDone, onClose, tickMs: 100 })
-  const [title, cue] = t(`mind.${step.id}`)
+  const [title, cue] = step.faith ? t(`mindFaith.${step.id}`) : t(`mind.${step.id}`)
 
   return (
     <div className="overlay mind" role="dialog" aria-modal="true" aria-label={t('reminder.mind.title')}>

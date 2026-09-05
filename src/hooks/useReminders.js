@@ -24,7 +24,7 @@ function migrate(v, data) {
  * Returns { [id]: { ...state, due, overdueMs, remainingMs, progress, done, snooze, skip, restart } }.
  * `onDue(id)` fires once per distinct due event; `onDone(id)` on completion.
  */
-export function useReminders(settings, now, quietHours, onDue, onDone) {
+export function useReminders(settings, now, quietHours, onDue, onDone, { paused = false, active } = {}) {
   const [states, setStates] = useState(() => {
     // No document yet → run the v0 import so upgrading users keep their timers.
     const stored = load(KEY, null, { version: VERSION, migrate }) ?? migrate(0, {})
@@ -55,13 +55,14 @@ export function useReminders(settings, now, quietHours, onDue, onDone) {
     const next = { ...states }
     const fired = []
     for (const k of REMINDER_KINDS) {
-      const r = engine.tick(states[k.id], settings[k.id], now, quietHours)
+      if (active && !active.includes(k.id)) continue
+      const r = engine.tick(states[k.id], settings[k.id], now, quietHours, paused)
       if (r.state !== states[k.id]) { next[k.id] = r.state; changed = true }
       if (r.fired && alerted.current[k.id] !== r.fired) { alerted.current[k.id] = r.fired; fired.push(k.id) }
     }
     if (changed) setStates(next)
     fired.forEach((id) => onDue?.(id))
-  }, [now, states, settings, quietHours, onDue])
+  }, [now, states, settings, quietHours, onDue, paused, active])
 
   const act = useCallback(
     (id, fn) => setStates((s) => ({ ...s, [id]: fn(s[id], Date.now(), settings[id]) })),

@@ -9,6 +9,23 @@ export const DEFAULT_SETTINGS = {
   pomodoro: { focusMin: 25, shortBreakMin: 5, longBreakMin: 15, roundsBeforeLong: 4, autoStartBreaks: true },
   quietHours: { enabled: true, start: '18:00', end: '08:30', workDays: [1, 2, 3, 4, 5] }, // 0=Sun … 6=Sat
   alerts: { sound: true, notifications: false, volume: 0.6 },
+  // Faith layer. `enabled: null` = not asked yet (prompt once, in every language, never inferred from locale).
+  faith: {
+    enabled: null,
+    sound: false, // separate from the feature: shared offices
+    discreet: false, // banners read "Reminder" to onlookers; content on hover/click
+    prayer: {
+      method: 4, // Umm Al-Qura (Aladhan method id)
+      school: 0, // 0 = Shafi'i/Maliki/Hanbali Asr, 1 = Hanafi
+      latAdj: 3, // high-latitude rule: 1 middle of night, 2 one-seventh, 3 angle based
+      location: null, // { lat, lon, label } or { city, country, label }
+      offsets: { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 },
+      headsUpMin: 10,
+      pauseMin: 20,
+      pauseOthers: true,
+    },
+    daily: { ayah: true, hadith: true },
+  },
 }
 
 /** localStorage migrations for `settings`. v0 = unversioned legacy, v1 = weekdaysOnly flag, v2 = workDays array. */
@@ -50,4 +67,5 @@ export const MIND = [
   { id: 'sit', seconds: 60, kind: 'still', pose: 'sit' },
   { id: 'ground', seconds: 60, kind: 'sense' },
   { id: 'handsWarm', seconds: 30, kind: 'still', pose: 'palms' },
+  { id: 'tawakkul', seconds: 60, kind: 'breath', pattern: [['inhale', 4], ['exhale', 6]], faith: true },
 ]

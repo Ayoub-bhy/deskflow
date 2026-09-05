@@ -10,13 +10,21 @@ export function useAlertCenter(alertsCfg, t) {
   const [banner, setBanner] = useState(null)
   const anyDueRef = useRef(false)
 
+  /**
+   * raise(key, tag, vars?, opts?) — opts.sound overrides the global sound
+   * (faith alerts have their own toggle); opts.discreet swaps the visible text
+   * for a neutral "Reminder" so onlookers see nothing specific.
+   */
   const raise = useCallback(
-    (key, tag) => {
-      const [title, body] = t(`alerts.${key}`)
-      if (alertsCfg.sound) chime(alertsCfg.volume)
-      if (alertsCfg.notifications && document.visibilityState !== 'visible') notify(title, body, tag)
-      setBanner({ tag, text: `${title} — ${body}` })
-      document.title = `(!) ${title} · DeskFlow`
+    (key, tag, vars, opts = {}) => {
+      const fill = (s) => (vars ? s.replace(/\{(\w+)\}/g, (_, n) => vars[n] ?? '') : s)
+      const [title, body] = t(`alerts.${key}`).map(fill)
+      const [dTitle, dBody] = opts.discreet ? t('alerts.discreet') : [title, body]
+      const sound = opts.sound ?? alertsCfg.sound
+      if (sound) chime(alertsCfg.volume)
+      if (alertsCfg.notifications && document.visibilityState !== 'visible') notify(dTitle, dBody, tag)
+      setBanner({ tag, text: `${dTitle} — ${dBody}`, full: opts.discreet ? `${title} — ${body}` : null })
+      document.title = `(!) ${dTitle} · DeskFlow`
     },
     [alertsCfg, t],
   )
@@ -32,7 +40,7 @@ export function useAlertCenter(alertsCfg, t) {
   // Stable callback for hooks that must not re-subscribe when settings/language change.
   const raiseRef = useRef(raise)
   raiseRef.current = raise
-  const raiseStable = useCallback((key, tag) => raiseRef.current(key, tag), [])
+  const raiseStable = useCallback((key, tag, vars, opts) => raiseRef.current(key, tag, vars, opts), [])
 
   return { banner, raise, raiseStable, dismiss, setAnyDue }
 }

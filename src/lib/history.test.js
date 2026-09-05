@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { mergeMax, computeStreak, computeStats, increment, toCsv, lastWeek } from './history'
+import { mergeMax, computeStreak, computeStats, increment, toCsv, lastWeek, empty } from './history'
+import { KIND_IDS } from '../reminders/registry'
 
 const D = (s) => new Date(s + 'T12:00:00')
 
 describe('history', () => {
   it('increment creates the day with zeros for every kind', () => {
     const h = increment({}, '2026-09-07', 'move')
-    expect(h['2026-09-07']).toEqual({ move: 1, water: 0, focus: 0, mind: 0 })
+    expect(h['2026-09-07']).toEqual({ ...empty(), move: 1 })
     expect(increment(h, '2026-09-07', 'move')['2026-09-07'].move).toBe(2)
   })
 
@@ -14,8 +15,8 @@ describe('history', () => {
     const local = { '2026-09-07': { move: 3, water: 1, focus: 0, mind: 2 } }
     const remote = { '2026-09-07': { move: 1, water: 4, focus: 2 }, '2026-09-06': { move: 5 } }
     expect(mergeMax(local, remote)).toEqual({
-      '2026-09-07': { move: 3, water: 4, focus: 2, mind: 2 },
-      '2026-09-06': { move: 5, water: 0, focus: 0, mind: 0 },
+      '2026-09-07': { ...empty(), move: 3, water: 4, focus: 2, mind: 2 },
+      '2026-09-06': { ...empty(), move: 5 },
     })
   })
 
@@ -32,7 +33,7 @@ describe('history', () => {
     const h = { '2026-08-30': { move: 2 }, '2026-09-01': { move: 5, water: 3 }, '2026-09-02': { focus: 1 } }
     const s = computeStats(h)
     expect(s.startedAt).toBe('2026-08-30')
-    expect(s.totals).toEqual({ move: 7, water: 3, focus: 1, mind: 0 })
+    expect(s.totals).toEqual({ ...empty(), move: 7, water: 3, focus: 1 })
     expect(s.best.move).toBe(5)
     expect(s.activeDays).toBe(3)
     expect(s.months.map((m) => m.key)).toEqual(['2026-09', '2026-08'])
@@ -48,6 +49,9 @@ describe('history', () => {
 
   it('exports CSV with a header and sorted rows', () => {
     const csv = toCsv({ '2026-09-02': { move: 1 }, '2026-09-01': { water: 2 } })
-    expect(csv.split('\n')).toEqual(['date,move,water,focus,mind', '2026-09-01,0,2,0,0', '2026-09-02,1,0,0,0'])
+    const z = KIND_IDS.map(() => 0)
+    const row = (date, o) => [date, ...KIND_IDS.map((k) => o[k] || 0)].join(',')
+    expect(csv.split('\n')).toEqual([['date', ...KIND_IDS].join(','), row('2026-09-01', { water: 2 }), row('2026-09-02', { move: 1 })])
+    expect(z.length).toBe(KIND_IDS.length)
   })
 })

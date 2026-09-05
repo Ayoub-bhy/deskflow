@@ -53,6 +53,17 @@ const paths = {
       <path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" />
     </>
   ),
+  // prayer: a simple mihrab arch
+  prayer: <path d="M5 21V12a7 7 0 0 1 14 0v9M5 21h14M12 3v2M9 21v-5a3 3 0 0 1 6 0v5" />,
+  // dhikr: tasbih beads
+  dhikr: (
+    <>
+      <circle cx="12" cy="4.5" r="1.8" /><circle cx="18" cy="8" r="1.8" /><circle cx="19.5" cy="14.5" r="1.8" /><circle cx="15.5" cy="19.5" r="1.8" />
+      <circle cx="8.5" cy="19.5" r="1.8" /><circle cx="4.5" cy="14.5" r="1.8" /><circle cx="6" cy="8" r="1.8" />
+    </>
+  ),
+  book: <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5V5.5M20 18v3H6.5M9 8h7M9 11.5h5" />,
+  eyeoff: <path d="M3 3l18 18M10.6 10.6A3 3 0 0 0 13.4 13.4M9.9 5.2A10.5 10.5 0 0 1 12 5c5 0 8.6 3.6 10 7-.5 1.2-1.3 2.4-2.3 3.4M6.3 6.3C4.3 7.7 2.8 9.8 2 12c1.4 3.4 5 7 10 7 1.7 0 3.2-.4 4.6-1.1" />,
   dot: <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />,
 }
 
