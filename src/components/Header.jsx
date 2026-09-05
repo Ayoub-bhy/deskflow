@@ -3,7 +3,7 @@ export default function Header({ auth, syncState, onSettings, onLeaveGuest }) {
   return (
     <header className="topbar">
       <div className="brand">
-        <img src="/icon.svg" alt="" width="28" height="28" />
+        <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" width="28" height="28" />
         <span>DeskFlow</span>
       </div>
       <div className="topbar-right">

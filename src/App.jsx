@@ -4,6 +4,7 @@ import { useSettings } from './hooks/useSettings'
 import { useNow } from './hooks/useNow'
 import { useReminder } from './hooks/useReminder'
 import { usePomodoro } from './hooks/usePomodoro'
+import { useHistory } from './hooks/useHistory'
 import { chime, notify, unlockAudio, requestNotifications, notificationsSupported } from './lib/alerts'
 import { inQuietHours } from './lib/time'
 import { TIPS } from './lib/defaults'
@@ -14,6 +15,7 @@ import ReminderCard from './components/ReminderCard'
 import PomodoroCard from './components/PomodoroCard'
 import BreakOverlay from './components/BreakOverlay'
 import SettingsPanel from './components/SettingsPanel'
+import ProgressBoard from './components/ProgressBoard'
 
 export default function App() {
   const auth = useAuth()
@@ -21,6 +23,8 @@ export default function App() {
   useEffect(() => save('guest', guest), [guest])
 
   const { settings, update, reset, syncState } = useSettings(auth.user)
+  const hist = useHistory(auth.user)
+  const record = hist.record
   const now = useNow(1000)
 
   const [banner, setBanner] = useState(null) // { kind, text }
@@ -46,15 +50,17 @@ export default function App() {
     [alert],
   )
 
-  const move = useReminder('move', settings.move, now, settings.quietHours, onDue)
-  const water = useReminder('water', settings.water, now, settings.quietHours, onDue)
+  const move = useReminder('move', settings.move, now, settings.quietHours, onDue, record)
+  const water = useReminder('water', settings.water, now, settings.quietHours, onDue, record)
 
   const onPhaseEnd = useCallback(
-    (phase) =>
-      phase === 'focus'
-        ? alert('Focus block done', 'Take your break — stand up while you’re at it.', 'pomo')
-        : alert('Break over', 'Ready for the next focus block?', 'pomo'),
-    [alert],
+    (phase) => {
+      if (phase === 'focus') {
+        record('focus')
+        alert('Focus block done', 'Take your break — stand up while you’re at it.', 'pomo')
+      } else alert('Break over', 'Ready for the next focus block?', 'pomo')
+    },
+    [alert, record],
   )
   const pomo = usePomodoro(settings.pomodoro, now, onPhaseEnd)
 
@@ -116,6 +122,7 @@ export default function App() {
           onIntervalChange={(intervalMin) => update({ water: { intervalMin } })}
         />
         <PomodoroCard cfg={settings.pomodoro} p={pomo} onChange={(patch) => update({ pomodoro: patch })} />
+        <ProgressBoard today={hist.today} week={hist.week} streak={hist.streak} />
         <section className="card tip">
           <h2>💡 Desk tip</h2>
           <p>{tip}</p>

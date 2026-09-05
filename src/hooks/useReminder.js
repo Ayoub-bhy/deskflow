@@ -10,7 +10,7 @@ import { load, save } from '../lib/storage'
  * "is Date.now() >= nextAt?". A reminder that came due while the laptop was
  * closed shows as a catch-up ("due 12 min ago") instead of silently firing late.
  */
-export function useReminder(kind, cfg, now, quietHours, onDue) {
+export function useReminder(kind, cfg, now, quietHours, onDue, onDone) {
   const key = `reminder:${kind}`
   const [state, setState] = useState(() =>
     load(key, { nextAt: Date.now() + cfg.intervalMin * MIN, lastDoneAt: null, dueAt: null, doneToday: 0, day: todayKey() }),
@@ -53,7 +53,8 @@ export function useReminder(kind, cfg, now, quietHours, onDue) {
   const done = useCallback(() => {
     const t = Date.now()
     setState((s) => ({ ...s, dueAt: null, lastDoneAt: t, nextAt: t + cfg.intervalMin * MIN, doneToday: s.doneToday + 1 }))
-  }, [cfg.intervalMin])
+    onDone?.(kind)
+  }, [cfg.intervalMin, onDone, kind])
 
   const snooze = useCallback(
     (min = cfg.snoozeMin) => setState((s) => ({ ...s, dueAt: null, nextAt: Date.now() + min * MIN })),

@@ -2,6 +2,7 @@
 // Both browser APIs need a user gesture first: call `unlockAudio()` and
 // `requestNotifications()` from a click handler, never on page load.
 
+const ICON = `${import.meta.env.BASE_URL}icon.svg`
 let ctx = null
 
 export function unlockAudio() {
@@ -58,11 +59,11 @@ export function notify(title, body, tag) {
     // minimised window; fall back to the page-level constructor.
     if (navigator.serviceWorker?.controller) {
       navigator.serviceWorker.ready.then((reg) =>
-        reg.showNotification(title, { body, tag, icon: '/icon.svg', badge: '/icon.svg', renotify: true, requireInteraction: false }),
+        reg.showNotification(title, { body, tag, icon: ICON, badge: ICON, renotify: true, requireInteraction: false }),
       )
       return true
     }
-    const n = new Notification(title, { body, tag, icon: '/icon.svg' })
+    const n = new Notification(title, { body, tag, icon: ICON })
     n.onclick = () => {
       window.focus()
       n.close()

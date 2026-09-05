@@ -1,16 +1,16 @@
 # DeskFlow
 
-Gentle, on-time reminders for laptop desk workers: **move every hour** (with a guided 3-minute stretch routine), **drink water**, and work in an **editable Pomodoro**. Guest-first; sign in with Google to sync settings across devices.
+Gentle, on-time reminders for laptop desk workers: **move every hour** (with a guided 3-minute stretch routine), **drink water**, and work in an **editable Pomodoro**. Guest-first; sign in with Google to sync settings and progress across devices.
 
-Built with Vite + React 19 + Firebase (Auth + Firestore), installable as a PWA.
+Built with Vite + React 19 + Supabase (Google auth + Postgres with Row Level Security), installable as a PWA. Includes a progress board (today's goals, 7-day chart, streak).
 
 ## Why it's built this way (LLM-council decisions)
 
 - **Wall-clock timers, never tick-counting.** Every timer stores an absolute `nextAt`/`endsAt` timestamp in `localStorage` and compares against `Date.now()` on each tick and on `visibilitychange`/`focus`. Laptop sleep, Chrome's intensive background throttling (timers collapse to ~1/min after 5 min hidden) and reloads can't make it drift. A reminder that came due while the lid was closed shows a **catch-up** ("due 12 min ago") instead of silently firing late.
 - **Permission on a click, never on load.** Sound (WebAudio) and desktop notifications are unlocked by the "Enable reminders" button. If notifications are denied/unsupported, you still get the in-page toast + chime + tab-title change.
 - **Never nags.** One chime + one banner per event, one-click Snooze/Skip/Done, quiet hours (default 18:00→08:30, weekends off).
-- **Guest-first.** Login is optional; it only syncs *settings* to Firestore `users/{uid}` (debounced writes, well inside the free tier). Ticking state never leaves the device.
-- **Security rules from day one** (`firestore.rules`): each user can only read/write their own document; everything else is closed. Firebase web config keys are public identifiers — rules are the security boundary.
+- **Guest-first.** Login is optional; it syncs *settings* and the 30-day *history* to a `profiles` row and appends each action to an `events` table (debounced, well inside the free tier). Ticking timer state never leaves the device.
+- **Row Level Security from day one** (`supabase/schema.sql`): each user can only read/write their own rows. The anon key is a public client key — RLS is the security boundary.
 - **Honest about the browser.** Reminders run while the tab is open (pinned) or the PWA is installed. A service worker alone cannot schedule future notifications when the browser is fully closed — that would need Web Push + a server, deferred.
 
 ## Run locally
@@ -22,36 +22,30 @@ npm run dev
 
 Works immediately in guest mode. To enable Google sign-in:
 
-## Firebase setup (≈5 minutes, free Spark plan)
+## Supabase setup (≈5 minutes, free plan)
 
-1. Go to <https://console.firebase.google.com> → **Add project** (e.g. `deskflow`). Analytics optional.
-2. **Build → Authentication → Get started → Sign-in method → Google → Enable.** Pick a support email, save.
-3. **Build → Firestore Database → Create database → Start in production mode**, choose a region.
-4. Open the **Rules** tab, paste the contents of `firestore.rules`, **Publish**.
-5. **Project settings (gear) → Your apps → Web (</>)** → register app `deskflow` → copy the `firebaseConfig` values.
-6. `cp .env.example .env.local` and fill in the `VITE_FIREBASE_*` values. Restart `npm run dev`.
-7. **Authentication → Settings → Authorized domains**: `localhost` is there already; add your hosting domain when you deploy (e.g. `ayoub-bhy.github.io` or `deskflow.web.app`).
+1. <https://supabase.com/dashboard> → **New project** (e.g. `deskflow`). Note the database password.
+2. **SQL Editor → New query** → paste `supabase/schema.sql` → **Run**. This creates `profiles`, `events`, the `daily_totals` view and the RLS policies.
+3. **Authentication → Providers → Google → Enable.** You need a Google OAuth client:
+   - <https://console.cloud.google.com/apis/credentials> → **Create credentials → OAuth client ID → Web application**.
+   - Authorized redirect URI: `https://<your-project-ref>.supabase.co/auth/v1/callback` (Supabase shows this exact URL on the Google provider page).
+   - Paste the Client ID and Client secret into Supabase, save.
+4. **Authentication → URL Configuration**: set **Site URL** to where the app lives (e.g. `https://ayoub-bhy.github.io/deskflow/`) and add `http://localhost:5173/**` plus your Pages URL to **Redirect URLs**.
+5. **Project Settings → API**: copy the **Project URL** and **anon public** key.
+6. Locally: `cp .env.example .env.local`, fill both values, restart `npm run dev`.
 
-## Deploy
+Data you collect, per user: `profiles.settings` (jsonb), `profiles.history` (30 days of daily counts), and one `events` row per action (`move` / `water` / `focus`) with a timestamp. Query `daily_totals` in the SQL editor or Table Editor for dashboards.
 
-### Option A — Firebase Hosting (recommended, custom domain + HTTPS)
+## Deploy to GitHub Pages (workflow included)
 
-```bash
-npm i -g firebase-tools
-firebase login
-firebase use --add            # select your project
-npm run build
-firebase deploy               # deploys hosting + firestore rules
-```
+`.github/workflows/deploy.yml` builds on every push to `main` with `VITE_BASE_PATH=/deskflow/` and publishes `dist/` to Pages.
 
-### Option B — GitHub Pages (workflow included)
+1. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. Repo **Settings → Secrets and variables → Actions → New repository secret**: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (from step 5 above). Until you add them the site still works in guest mode.
+3. Push (or **Actions → Build & deploy → Run workflow**). The site appears at `https://<user>.github.io/deskflow/`.
+4. Make sure that URL is in Supabase **Redirect URLs** (step 4 above), otherwise Google login bounces back to localhost.
 
-`.github/workflows/deploy.yml` builds on every push to `main` and publishes `dist/` to GitHub Pages.
-
-1. Repo **Settings → Pages → Source: GitHub Actions**.
-2. Repo **Settings → Secrets and variables → Actions → New repository secret** for each `VITE_FIREBASE_*` key from your `.env.local`.
-3. If the site is served at `https://<user>.github.io/deskflow/`, set `base: '/deskflow/'` in `vite.config.js` (and the manifest `start_url`) — or use a custom domain to keep `/`.
-4. Add the Pages domain to Firebase **Authorized domains**.
+Custom domain instead? Set the domain in Pages settings, change `VITE_BASE_PATH` in the workflow to `/`, and update the Supabase Site URL.
 
 ## Seedance / Higgsfield video assets (optional)
 
@@ -75,25 +69,27 @@ Videos are excluded from the PWA precache on purpose.
 
 ```
 src/
-  firebase.js          Firebase init (no-op when env vars are missing → guest mode)
+  supabase.js          Supabase client (null when env vars are missing → guest mode)
   lib/
     defaults.js        default settings, stretch routine, desk tips
     time.js            formatting + quiet-hours logic
     alerts.js          WebAudio chime, Notification API helpers
     storage.js         localStorage helpers, deepMerge
+    cloud.js           profiles upsert/fetch + events insert
   hooks/
     useNow.js          coarse ticker that also fires on visibility/focus
     useReminder.js     wall-clock reminder engine (Move & Water are two instances)
     usePomodoro.js     editable Pomodoro, remaining = endsAt - now
-    useSettings.js     localStorage + debounced Firestore mirror
-    useAuth.js         Google sign-in (popup → redirect fallback)
-  components/          Landing, Header, ReminderCard, PomodoroCard, BreakOverlay, SettingsPanel, Ring, StretchFigure
-firestore.rules        per-user isolation
-firebase.json          hosting + rules config
+    useSettings.js     localStorage + debounced Supabase mirror
+    useHistory.js      daily counters, 7-day/streak maths, events logging
+    useAuth.js         Google sign-in via Supabase Auth (OAuth redirect)
+  components/          Landing, Header, ReminderCard, PomodoroCard, ProgressBoard, BreakOverlay, SettingsPanel, Ring, StretchFigure
+supabase/schema.sql    tables, RLS policies, daily_totals view
+.github/workflows/     GitHub Pages deploy
 ```
 
 ## Roadmap (deferred on purpose)
 
-- Web Push via Cloud Functions/FCM so reminders survive a closed browser.
+- Web Push via a Supabase Edge Function so reminders survive a closed browser.
 - Browser extension (`chrome.alarms`) for OS-level reliability.
-- Streaks / "desk health" history (schema will live under `users/{uid}/days/{date}`).
+- Weekly email digest from `daily_totals` (Supabase cron + Resend).

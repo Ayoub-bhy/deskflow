@@ -66,7 +66,7 @@ export default function BreakOverlay({ onDone, onClose, sound }) {
             <video
               key={step.pose}
               className="stretch-video"
-              src={`/videos/${step.pose}.mp4`}
+              src={`${import.meta.env.BASE_URL}videos/${step.pose}.mp4`}
               autoPlay
               muted
               loop

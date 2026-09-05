@@ -6,7 +6,7 @@ export default function Landing({ auth, onGuest }) {
       <div className="hero">
         <div className="hero-media" aria-hidden="true">
           {/* Drop a Seedance clip at public/videos/hero.mp4 and it will play here; otherwise the animated scene shows. */}
-          <video className="hero-video" src="/videos/hero.mp4" autoPlay muted loop playsInline preload="none" onError={(e) => (e.currentTarget.style.display = 'none')} />
+          <video className="hero-video" src={`${import.meta.env.BASE_URL}videos/hero.mp4`} autoPlay muted loop playsInline preload="none" onError={(e) => (e.currentTarget.style.display = 'none')} />
           <div className="hero-scene">
             <span className="blob b1" /><span className="blob b2" /><span className="blob b3" />
             <StretchFigure pose="reach" size={220} className="hero-figure" />
@@ -27,7 +27,7 @@ export default function Landing({ auth, onGuest }) {
                 <GoogleMark /> Continue with Google
               </button>
             ) : (
-              <p className="muted small">Google sign-in appears once Firebase is configured (see README).</p>
+              <p className="muted small">Google sign-in appears once Supabase is configured (see README).</p>
             )}
             <button className="btn ghost" onClick={onGuest}>Continue as guest</button>
           </div>

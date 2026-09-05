@@ -1,36 +1,46 @@
 import { useEffect, useState, useCallback } from 'react'
-import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth'
-import { auth, googleProvider, firebaseEnabled } from '../firebase'
+import { supabase, supabaseEnabled } from '../supabase'
 
+/** Google sign-in through Supabase Auth. `user` is normalised to { uid, email, displayName, photoURL }. */
 export function useAuth() {
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(firebaseEnabled)
+  const [loading, setLoading] = useState(supabaseEnabled)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!firebaseEnabled) return
-    return onAuthStateChanged(auth, (u) => {
-      setUser(u)
+    if (!supabaseEnabled) return
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(normalise(data.session?.user))
       setLoading(false)
     })
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(normalise(session?.user))
+      setLoading(false)
+    })
+    return () => sub.subscription.unsubscribe()
   }, [])
 
   const signIn = useCallback(async () => {
-    if (!firebaseEnabled) return
+    if (!supabaseEnabled) return
     setError(null)
-    try {
-      await signInWithPopup(auth, googleProvider)
-    } catch (e) {
-      // Popup blockers / iOS Safari → fall back to redirect.
-      if (e?.code === 'auth/popup-blocked' || e?.code === 'auth/operation-not-supported-in-this-environment') {
-        await signInWithRedirect(auth, googleProvider)
-      } else if (e?.code !== 'auth/popup-closed-by-user' && e?.code !== 'auth/cancelled-popup-request') {
-        setError(e?.message || 'Sign-in failed')
-      }
-    }
+    const { error: e } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        // Come back to exactly this page (works for localhost, GitHub Pages sub-path, or a custom domain).
+        redirectTo: window.location.origin + import.meta.env.BASE_URL,
+        queryParams: { prompt: 'select_account' },
+      },
+    })
+    if (e) setError(e.message)
   }, [])
 
-  const logout = useCallback(() => (firebaseEnabled ? signOut(auth) : Promise.resolve()), [])
+  const logout = useCallback(() => (supabaseEnabled ? supabase.auth.signOut() : Promise.resolve()), [])
 
-  return { user, loading, error, signIn, logout, enabled: firebaseEnabled }
+  return { user, loading, error, signIn, logout, enabled: supabaseEnabled }
+}
+
+function normalise(u) {
+  if (!u) return null
+  const m = u.user_metadata || {}
+  return { uid: u.id, email: u.email, displayName: m.full_name || m.name || null, photoURL: m.avatar_url || m.picture || null }
 }

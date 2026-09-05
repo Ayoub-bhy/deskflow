@@ -218,3 +218,19 @@ input { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Progress board */
+.board-top { display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap; }
+.goals { list-style: none; padding: 0; margin: 0; flex: 1; min-width: 200px; display: grid; gap: 0.7rem; }
+.goal-row { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.25rem; }
+.bar { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.bar span { display: block; height: 100%; border-radius: 999px; transition: width 0.5s ease; }
+.weekchart { margin-top: 1rem; }
+.weekchart svg { width: 100%; height: auto; display: block; }
+.weekchart .axis { font-size: 11px; fill: var(--muted); }
+.weekchart .goal-line { stroke: var(--muted); stroke-dasharray: 4 4; opacity: 0.6; }
+.weekchart .today .axis { font-weight: 700; fill: var(--ink); }
+.legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.4rem; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: 4px; }
+.legend i.dash { width: 14px; height: 0; border-top: 2px dashed var(--muted); border-radius: 0; }
+.board-foot { margin-top: 0.75rem; }
